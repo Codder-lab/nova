@@ -10,8 +10,10 @@
   ],
   "scripts": {
     "dev:server": "npm.cmd --workspace=server run dev",
+    "dev:client": "npm.cmd --workspace=@nova/client run dev",
     "agent:cli": "npm.cmd --workspace=server run agent:cli",
     "build:server": "npm.cmd --workspace=server run build",
+    "build:client": "npm.cmd --workspace=@nova/client run build",
     "test:server": "npm.cmd --workspace=server run test"
   },
   "keywords": [

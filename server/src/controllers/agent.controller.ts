@@ -1,11 +1,11 @@
-import { Request, Response } from 'express';
-import { z } from 'zod';
-import { AgentEngine } from '../agents/agent.engine';
-import { globalToolRegistry } from '../tools/base/tool-registry';
-import { logger } from '../utils/logger';
+import { Request, Response } from "express";
+import { z } from "zod";
+import { AgentEngine } from "../agents/agent.engine";
+import { globalToolRegistry } from "../tools/base/tool-registry";
+import { logger } from "../utils/logger";
 
 const runAgentSchema = z.object({
-  goal: z.string().min(1, 'Goal is required'),
+  goal: z.string().min(1, "Goal is required"),
   conversationId: z.string().optional(),
   maxSteps: z.number().int().positive().optional(),
   timeoutMs: z.number().int().positive().optional(),
@@ -14,11 +14,16 @@ const runAgentSchema = z.object({
 export async function runAgent(req: Request, res: Response): Promise<void> {
   const parseResult = runAgentSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res.status(400).json({ error: 'Validation failed', details: parseResult.error.format() });
+    res
+      .status(400)
+      .json({
+        error: "Validation failed",
+        details: parseResult.error.format(),
+      });
     return;
   }
 
-  const userId = req.user?.userId || 'anonymous-user';
+  const userId = req.user?.userId || "anonymous-user";
   const { goal, conversationId, maxSteps, timeoutMs } = parseResult.data;
 
   try {
@@ -34,9 +39,41 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
 
     res.status(200).json(result);
   } catch (error: any) {
-    logger.error({ error: error.message }, 'Agent controller execution failed');
-    res.status(500).json({ error: 'Agent execution failed', details: error.message });
+    logger.error({ error: error.message }, "Agent controller execution failed");
+    res
+      .status(500)
+      .json({ error: "Agent execution failed", details: error.message });
   }
+}
+
+import { queueService } from "../services/queue.service";
+
+export function enqueueJob(req: Request, res: Response): void {
+  const parseResult = runAgentSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res
+      .status(400)
+      .json({
+        error: "Validation failed",
+        details: parseResult.error.format(),
+      });
+    return;
+  }
+
+  const userId = req.user?.userId || "anonymous-user";
+  const { goal, conversationId } = parseResult.data;
+
+  const job = queueService.enqueue({
+    userId,
+    goal,
+    conversationId,
+  });
+
+  res.status(202).json({
+    success: true,
+    message: "Goal enqueued for background processing",
+    job,
+  });
 }
 
 export function listTools(_req: Request, res: Response): void {

@@ -1,5 +1,5 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { ReminderStatus } from '@nova/shared';
+import mongoose, { Document, Schema } from "mongoose";
+import { ReminderStatus } from "@nova/shared";
 
 export interface IReminder extends Document {
   id: string;
@@ -20,8 +20,8 @@ const ReminderSchema = new Schema<IReminder>(
     remindAt: { type: Date, required: true, index: true },
     status: {
       type: String,
-      enum: ['pending', 'triggered', 'cancelled'],
-      default: 'pending',
+      enum: ["pending", "triggered", "cancelled"],
+      default: "pending",
     },
   },
   {
@@ -34,10 +34,10 @@ const ReminderSchema = new Schema<IReminder>(
         return ret;
       },
     },
-  }
+  },
 );
 
 ReminderSchema.index({ userId: 1, status: 1 });
 ReminderSchema.index({ remindAt: 1, status: 1 });
 
-export const Reminder = mongoose.model<IReminder>('Reminder', ReminderSchema);
+export const Reminder = mongoose.model<IReminder>("Reminder", ReminderSchema);

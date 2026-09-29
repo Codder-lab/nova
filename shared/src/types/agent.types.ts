@@ -1,17 +1,17 @@
-export type RiskLevel = 'READ' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type RiskLevel = "READ" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type AgentRunStatus =
-  | 'queued'
-  | 'planning'
-  | 'running'
-  | 'waiting_for_approval'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+  | "queued"
+  | "planning"
+  | "running"
+  | "waiting_for_approval"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
-export type AgentStepType = 'planning' | 'tool' | 'observation' | 'response';
+export type AgentStepType = "planning" | "tool" | "observation" | "response";
 
-export type AgentStepStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type AgentStepStatus = "pending" | "running" | "completed" | "failed";
 
 export interface ToolCallRecord {
   id: string;
@@ -20,7 +20,7 @@ export interface ToolCallRecord {
   result?: unknown;
   error?: string;
   durationMs?: number;
-  status: 'pending' | 'executing' | 'completed' | 'failed';
+  status: "pending" | "executing" | "completed" | "failed";
 }
 
 export interface AgentStep {
@@ -35,6 +35,15 @@ export interface AgentStep {
   completedAt?: Date;
 }
 
+export interface PendingApprovalAction {
+  id: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+  riskLevel: RiskLevel;
+  explanation?: string;
+  requestedAt: Date | string;
+}
+
 export interface AgentRun {
   id: string;
   userId: string;
@@ -44,6 +53,7 @@ export interface AgentRun {
   steps: AgentStep[];
   finalResponse?: string;
   error?: string;
+  pendingApproval?: PendingApprovalAction;
   startedAt: Date;
   completedAt?: Date;
   metadata?: Record<string, unknown>;
@@ -56,6 +66,7 @@ export interface AgentInput {
   runId?: string;
   maxSteps?: number;
   timeoutMs?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AgentResult {
@@ -67,4 +78,5 @@ export interface AgentResult {
   toolCallsCount: number;
   durationMs: number;
   error?: string;
+  pendingApproval?: PendingApprovalAction;
 }

@@ -1,4 +1,4 @@
-export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
+export type ChatRole = "system" | "user" | "assistant" | "tool";
 
 export interface ToolCallItem {
   id?: string;
@@ -25,7 +25,7 @@ export interface ToolDefinition {
   name: string;
   description: string;
   parameters: {
-    type: 'object';
+    type: "object";
     properties: Record<string, ToolParameterProperty>;
     required?: string[];
   };
@@ -42,7 +42,7 @@ export interface LLMRequest {
 export interface LLMResponse {
   content: string;
   toolCalls?: ToolCallItem[];
-  finishReason?: 'stop' | 'tool_calls' | 'length' | 'error';
+  finishReason?: "stop" | "tool_calls" | "length" | "error";
   usage?: {
     promptTokens: number;
     completionTokens: number;

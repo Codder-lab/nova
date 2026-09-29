@@ -1,7 +1,7 @@
-import { AgentTool } from './agent-tool.interface';
-import { ToolDefinition } from '@nova/shared';
-import { zodToToolDefinition } from './zod-to-json';
-import { logger } from '../../utils/logger';
+import { AgentTool } from "./agent-tool.interface";
+import { ToolDefinition } from "@nova/shared";
+import { zodToToolDefinition } from "./zod-to-json";
+import { logger } from "../../utils/logger";
 
 export class ToolRegistry {
   private tools: Map<string, AgentTool> = new Map();
@@ -11,10 +11,16 @@ export class ToolRegistry {
    */
   public register(tool: AgentTool): void {
     if (this.tools.has(tool.name)) {
-      logger.warn({ tool: tool.name }, 'Overwriting existing tool registration');
+      logger.warn(
+        { tool: tool.name },
+        "Overwriting existing tool registration",
+      );
     }
     this.tools.set(tool.name, tool);
-    logger.debug({ tool: tool.name, risk: tool.riskLevel }, 'Tool registered successfully');
+    logger.debug(
+      { tool: tool.name, risk: tool.riskLevel },
+      "Tool registered successfully",
+    );
   }
 
   /**
@@ -50,7 +56,7 @@ export class ToolRegistry {
    */
   public toToolDefinitions(): ToolDefinition[] {
     return this.getAll().map((tool) =>
-      zodToToolDefinition(tool.name, tool.description, tool.inputSchema)
+      zodToToolDefinition(tool.name, tool.description, tool.inputSchema),
     );
   }
 }
