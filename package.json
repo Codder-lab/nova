@@ -1,0 +1,25 @@
+{
+  "name": "nova-ai-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "General-purpose Agentic AI Assistant",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm.cmd --workspace=server run dev",
+    "agent:cli": "npm.cmd --workspace=server run agent:cli",
+    "build:server": "npm.cmd --workspace=server run build",
+    "test:server": "npm.cmd --workspace=server run test"
+  },
+  "keywords": [
+    "agentic-ai",
+    "assistant",
+    "llm",
+    "ollama"
+  ],
+  "author": "",
+  "license": "MIT"
+}
