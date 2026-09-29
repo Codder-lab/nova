@@ -1,4 +1,4 @@
-import { LLMRequest, LLMResponse, LLMChunk } from '@nova/shared';
+import { LLMRequest, LLMResponse, LLMChunk } from "@nova/shared";
 
 export interface LLMProvider {
   name: string;

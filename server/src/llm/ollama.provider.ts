@@ -1,4 +1,4 @@
-import { LLMProvider } from './provider';
+import { LLMProvider } from "./provider";
 import {
   LLMRequest,
   LLMResponse,
@@ -6,15 +6,15 @@ import {
   ToolCallItem,
   ChatMessage,
   ToolDefinition,
-} from '@nova/shared';
-import { logger } from '../utils/logger';
+} from "@nova/shared";
+import { logger } from "../utils/logger";
 
 export class OllamaProvider implements LLMProvider {
-  public readonly name = 'ollama';
+  public readonly name = "ollama";
 
   constructor(
-    private readonly baseUrl: string = 'http://localhost:11434',
-    private readonly model: string = 'qwen2.5:7b'
+    private readonly baseUrl: string = "http://localhost:11434",
+    private readonly model: string = "qwen2.5:7b",
   ) {}
 
   public supportsToolCalling(): boolean {
@@ -23,7 +23,9 @@ export class OllamaProvider implements LLMProvider {
 
   public async generate(request: LLMRequest): Promise<LLMResponse> {
     const formattedMessages = this.formatMessages(request.messages);
-    const formattedTools = request.tools ? this.formatTools(request.tools) : undefined;
+    const formattedTools = request.tools
+      ? this.formatTools(request.tools)
+      : undefined;
 
     const payload: Record<string, any> = {
       model: this.model,
@@ -40,8 +42,8 @@ export class OllamaProvider implements LLMProvider {
 
     try {
       const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -52,7 +54,7 @@ export class OllamaProvider implements LLMProvider {
 
       const data: any = await response.json();
       const message = data.message || {};
-      const content = message.content || '';
+      const content = message.content || "";
 
       const toolCalls: ToolCallItem[] = [];
 
@@ -61,11 +63,14 @@ export class OllamaProvider implements LLMProvider {
         for (const tc of message.tool_calls) {
           const fn = tc.function || tc;
           let args = fn.arguments;
-          if (typeof args === 'string') {
+          if (typeof args === "string") {
             try {
               args = JSON.parse(args);
             } catch {
-              logger.warn({ args }, 'Failed to parse tool call arguments string');
+              logger.warn(
+                { args },
+                "Failed to parse tool call arguments string",
+              );
               args = {};
             }
           }
@@ -78,7 +83,12 @@ export class OllamaProvider implements LLMProvider {
       }
 
       // 2. Text fallback: if no native tool calls were parsed but tools were requested, check if LLM wrote JSON
-      if (toolCalls.length === 0 && request.tools && request.tools.length > 0 && content) {
+      if (
+        toolCalls.length === 0 &&
+        request.tools &&
+        request.tools.length > 0 &&
+        content
+      ) {
         const fallbackCall = this.parseFallbackToolCall(content, request.tools);
         if (fallbackCall) {
           toolCalls.push(fallbackCall);
@@ -88,7 +98,7 @@ export class OllamaProvider implements LLMProvider {
       return {
         content,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-        finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
+        finishReason: toolCalls.length > 0 ? "tool_calls" : "stop",
         usage: {
           promptTokens: data.prompt_eval_count || 0,
           completionTokens: data.eval_count || 0,
@@ -96,14 +106,19 @@ export class OllamaProvider implements LLMProvider {
         },
       };
     } catch (error: any) {
-      logger.error({ error: error.message, model: this.model }, 'Ollama generate failed');
+      logger.error(
+        { error: error.message, model: this.model },
+        "Ollama generate failed",
+      );
       throw error;
     }
   }
 
   public async *stream(request: LLMRequest): AsyncIterable<LLMChunk> {
     const formattedMessages = this.formatMessages(request.messages);
-    const formattedTools = request.tools ? this.formatTools(request.tools) : undefined;
+    const formattedTools = request.tools
+      ? this.formatTools(request.tools)
+      : undefined;
 
     const payload: Record<string, any> = {
       model: this.model,
@@ -119,8 +134,8 @@ export class OllamaProvider implements LLMProvider {
     }
 
     const response = await fetch(`${this.baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
@@ -130,7 +145,7 @@ export class OllamaProvider implements LLMProvider {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let buffer = "";
 
     try {
       while (true) {
@@ -138,8 +153,8 @@ export class OllamaProvider implements LLMProvider {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -147,17 +162,19 @@ export class OllamaProvider implements LLMProvider {
 
           try {
             const parsed = JSON.parse(trimmed);
-            const chunkContent = parsed.message?.content || '';
+            const chunkContent = parsed.message?.content || "";
             const isDone = Boolean(parsed.done);
 
             let toolCalls: ToolCallItem[] | undefined;
             if (Array.isArray(parsed.message?.tool_calls)) {
               toolCalls = parsed.message.tool_calls.map((tc: any) => ({
-                id: tc.id || `call_${Math.random().toString(36).substring(2, 9)}`,
+                id:
+                  tc.id || `call_${Math.random().toString(36).substring(2, 9)}`,
                 name: tc.function?.name || tc.name,
-                arguments: typeof tc.function?.arguments === 'string'
-                  ? JSON.parse(tc.function.arguments)
-                  : tc.function?.arguments || {},
+                arguments:
+                  typeof tc.function?.arguments === "string"
+                    ? JSON.parse(tc.function.arguments)
+                    : tc.function?.arguments || {},
               }));
             }
 
@@ -186,7 +203,7 @@ export class OllamaProvider implements LLMProvider {
       if (msg.toolCalls && msg.toolCalls.length > 0) {
         out.tool_calls = msg.toolCalls.map((tc) => ({
           id: tc.id,
-          type: 'function',
+          type: "function",
           function: {
             name: tc.name,
             arguments: tc.arguments,
@@ -194,8 +211,8 @@ export class OllamaProvider implements LLMProvider {
         }));
       }
 
-      if (msg.role === 'tool') {
-        out.role = 'tool';
+      if (msg.role === "tool") {
+        out.role = "tool";
       }
 
       return out;
@@ -204,7 +221,7 @@ export class OllamaProvider implements LLMProvider {
 
   private formatTools(tools: ToolDefinition[]): any[] {
     return tools.map((tool) => ({
-      type: 'function',
+      type: "function",
       function: {
         name: tool.name,
         description: tool.description,
@@ -213,9 +230,15 @@ export class OllamaProvider implements LLMProvider {
     }));
   }
 
-  private parseFallbackToolCall(content: string, availableTools: ToolDefinition[]): ToolCallItem | null {
+  private parseFallbackToolCall(
+    content: string,
+    availableTools: ToolDefinition[],
+  ): ToolCallItem | null {
     try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, content];
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [
+        null,
+        content,
+      ];
       const rawJson = (jsonMatch[1] || content).trim();
       const parsed = JSON.parse(rawJson);
 
@@ -226,7 +249,8 @@ export class OllamaProvider implements LLMProvider {
         return {
           id: `call_${Math.random().toString(36).substring(2, 9)}`,
           name: toolName,
-          arguments: typeof toolArgs === 'object' && toolArgs !== null ? toolArgs : {},
+          arguments:
+            typeof toolArgs === "object" && toolArgs !== null ? toolArgs : {},
         };
       }
     } catch {

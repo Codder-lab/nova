@@ -1,5 +1,5 @@
-export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskStatus = "todo" | "in_progress" | "completed" | "cancelled";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface TaskItem {
   id: string;
@@ -14,7 +14,7 @@ export interface TaskItem {
   updatedAt: Date | string;
 }
 
-export type ReminderStatus = 'pending' | 'triggered' | 'cancelled';
+export type ReminderStatus = "pending" | "triggered" | "cancelled";
 
 export interface ReminderItem {
   id: string;

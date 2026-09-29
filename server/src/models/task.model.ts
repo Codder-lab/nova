@@ -1,5 +1,5 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { TaskStatus, TaskPriority } from '@nova/shared';
+import mongoose, { Document, Schema } from "mongoose";
+import { TaskStatus, TaskPriority } from "@nova/shared";
 
 export interface ITask extends Document {
   id: string;
@@ -21,13 +21,13 @@ const TaskSchema = new Schema<ITask>(
     description: { type: String, trim: true },
     status: {
       type: String,
-      enum: ['todo', 'in_progress', 'completed', 'cancelled'],
-      default: 'todo',
+      enum: ["todo", "in_progress", "completed", "cancelled"],
+      default: "todo",
     },
     priority: {
       type: String,
-      enum: ['low', 'medium', 'high', 'urgent'],
-      default: 'medium',
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
     },
     dueDate: { type: Date },
     tags: { type: [String], default: [] },
@@ -42,10 +42,10 @@ const TaskSchema = new Schema<ITask>(
         return ret;
       },
     },
-  }
+  },
 );
 
 TaskSchema.index({ userId: 1, status: 1 });
 TaskSchema.index({ userId: 1, dueDate: 1 });
 
-export const Task = mongoose.model<ITask>('Task', TaskSchema);
+export const Task = mongoose.model<ITask>("Task", TaskSchema);
