@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   MessageSquare,
   CheckSquare,
@@ -8,27 +7,34 @@ import {
   History,
   Globe,
   Settings,
-  Sparkles,
+  Bot,
   ShieldAlert,
   ChevronRight,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  LogIn,
+  LogOut,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 
 export type TabType =
-  | 'chat'
-  | 'tasks'
-  | 'reminders'
-  | 'memory'
-  | 'schedules'
-  | 'runs'
-  | 'research'
-  | 'settings';
+  | "chat"
+  | "tasks"
+  | "reminders"
+  | "memory"
+  | "schedules"
+  | "runs"
+  | "research"
+  | "settings";
 
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   pendingApprovalsCount: number;
   isConnected: boolean;
+  currentUser?: { name?: string; email?: string } | null;
+  onOpenLogin?: () => void;
+  onSignOut?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -36,104 +42,97 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   pendingApprovalsCount,
   isConnected,
+  currentUser,
+  onOpenLogin,
+  onSignOut,
 }) => {
   const navItems = [
     {
-      id: 'chat' as TabType,
-      label: 'Assistant Chat',
+      id: "chat" as TabType,
+      label: "Assistant Chat",
       icon: MessageSquare,
       badge: pendingApprovalsCount > 0 ? `${pendingApprovalsCount}` : null,
-      badgeVariant: 'warning' as const,
-      description: 'AI conversation & approvals',
+      badgeVariant: "warning" as const,
+      group: "Core",
     },
     {
-      id: 'tasks' as TabType,
-      label: 'Tasks Board',
+      id: "tasks" as TabType,
+      label: "Tasks Board",
       icon: CheckSquare,
-      description: 'Goals & task tracking',
+      group: "Core",
     },
     {
-      id: 'reminders' as TabType,
-      label: 'Reminders',
+      id: "reminders" as TabType,
+      label: "Reminders",
       icon: Bell,
-      description: 'Scheduled alerts',
+      group: "Core",
     },
     {
-      id: 'memory' as TabType,
-      label: 'Memory Bank',
+      id: "memory" as TabType,
+      label: "Memory Bank",
       icon: Brain,
-      description: 'Long-term context',
+      group: "Core",
     },
     {
-      id: 'schedules' as TabType,
-      label: 'Automations',
+      id: "schedules" as TabType,
+      label: "Automations",
       icon: Clock,
-      description: 'Recurring jobs',
+      group: "Operations",
     },
     {
-      id: 'runs' as TabType,
-      label: 'Run History',
+      id: "runs" as TabType,
+      label: "Run History",
       icon: History,
-      description: 'Execution audit log',
+      group: "Operations",
     },
     {
-      id: 'research' as TabType,
-      label: 'Web & Browser',
+      id: "research" as TabType,
+      label: "Web & Browser",
       icon: Globe,
-      description: 'Search & automation',
+      group: "Operations",
     },
     {
-      id: 'settings' as TabType,
-      label: 'System & Policy',
+      id: "settings" as TabType,
+      label: "System & Policy",
       icon: Settings,
-      description: 'Config & security',
+      group: "Operations",
     },
   ];
 
-  const coreItems = navItems.slice(0, 5);
-  const toolItems = navItems.slice(5);
+  const coreItems = navItems.filter((i) => i.group === "Core");
+  const operationItems = navItems.filter((i) => i.group === "Operations");
 
   return (
-    <aside className="w-[260px] h-screen flex flex-col border-r border-white/[0.06] bg-[#060910]/95 backdrop-blur-2xl select-none shrink-0 z-20 relative">
-      {/* Subtle inner glow on left edge */}
-      <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent pointer-events-none" />
-
+    <aside className="w-60 h-screen flex flex-col border-r border-border bg-card text-card-foreground select-none shrink-0 z-20">
       {/* Brand Header */}
-      <div className="px-5 pt-5 pb-4">
-        <div className="flex items-center gap-3">
-          {/* Logo with animated glow */}
-          <div className="relative">
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 blur-md opacity-60" />
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 shadow-lg shadow-indigo-500/30">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
+      <div className="h-14 px-4 flex items-center gap-3 border-b border-border">
+        <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary text-primary-foreground font-bold shadow-xs">
+          <Bot className="w-4 h-4" />
+        </div>
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm tracking-tight text-foreground">
+              Nova AI
+            </span>
+            <Badge
+              variant="secondary"
+              className="text-[10px] px-1 py-0 h-4 font-normal"
+            >
+              v1.0
+            </Badge>
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-black text-[15px] tracking-tight text-white font-['Outfit',sans-serif]">
-                NOVA AI
-              </span>
-              <span className="text-[9px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400 border border-indigo-500/25">
-                v1.0
-              </span>
-            </div>
-            <span className="text-[11px] text-slate-500 font-medium">Autonomous Platform</span>
-          </div>
+          <span className="text-[11px] text-muted-foreground truncate">
+            Autonomous Agent
+          </span>
         </div>
       </div>
 
-      {/* Search / Divider */}
-      <div className="px-3 pb-3">
-        <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
-      </div>
-
-      {/* Navigation */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5 no-scrollbar">
-        {/* Core Workspace */}
+      {/* Navigation Links */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 no-scrollbar">
+        {/* Core Group */}
         <div>
-          <div className="px-2 mb-2 flex items-center gap-2">
-            <div className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Core Workspace</div>
-            <div className="flex-1 h-px bg-white/5" />
+          <div className="px-2 mb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Workspace
           </div>
           <nav className="space-y-0.5">
             {coreItems.map((item) => {
@@ -144,39 +143,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group text-left cursor-pointer relative overflow-hidden',
+                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
                     isActive
-                      ? 'bg-indigo-500/12 text-indigo-200 border border-indigo-500/25'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
+                      ? "bg-secondary text-foreground font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
                   )}
                 >
-                  {/* Active indicator bar */}
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-gradient-to-b from-indigo-400 to-purple-500 rounded-r-full" />
-                  )}
-
-                  <div className={cn(
-                    "flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-150 shrink-0",
-                    isActive
-                      ? "bg-indigo-500/20 text-indigo-300"
-                      : "bg-white/5 text-slate-500 group-hover:bg-white/8 group-hover:text-slate-300"
-                  )}>
-                    <Icon className="w-3.5 h-3.5" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="leading-none text-[13px]">{item.label}</div>
-                    {isActive && item.description && (
-                      <div className="text-[10px] text-indigo-400/70 mt-0.5 leading-none">{item.description}</div>
-                    )}
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon
+                      className={cn(
+                        "w-4 h-4 shrink-0",
+                        isActive ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    />
+                    <span className="truncate">{item.label}</span>
                   </div>
 
                   {item.badge ? (
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold shrink-0">
+                    <Badge
+                      variant="warning"
+                      className="text-[10px] px-1.5 py-0 h-4 font-semibold"
+                    >
                       {item.badge}
-                    </span>
+                    </Badge>
                   ) : (
-                    isActive && <ChevronRight className="w-3 h-3 text-indigo-400/60 shrink-0" />
+                    isActive && (
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                    )
                   )}
                 </button>
               );
@@ -184,14 +177,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* Intelligence & Tools */}
+        {/* Operations Group */}
         <div>
-          <div className="px-2 mb-2 flex items-center gap-2">
-            <div className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Intelligence</div>
-            <div className="flex-1 h-px bg-white/5" />
+          <div className="px-2 mb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Operations
           </div>
           <nav className="space-y-0.5">
-            {toolItems.map((item) => {
+            {operationItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -199,33 +191,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group text-left cursor-pointer relative overflow-hidden',
+                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer text-left",
                     isActive
-                      ? 'bg-indigo-500/12 text-indigo-200 border border-indigo-500/25'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
+                      ? "bg-secondary text-foreground font-semibold shadow-2xs"
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
                   )}
                 >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon
+                      className={cn(
+                        "w-4 h-4 shrink-0",
+                        isActive ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-gradient-to-b from-indigo-400 to-purple-500 rounded-r-full" />
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
-
-                  <div className={cn(
-                    "flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-150 shrink-0",
-                    isActive
-                      ? "bg-indigo-500/20 text-indigo-300"
-                      : "bg-white/5 text-slate-500 group-hover:bg-white/8 group-hover:text-slate-300"
-                  )}>
-                    <Icon className="w-3.5 h-3.5" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="leading-none text-[13px]">{item.label}</div>
-                    {isActive && item.description && (
-                      <div className="text-[10px] text-indigo-400/70 mt-0.5 leading-none">{item.description}</div>
-                    )}
-                  </div>
-
-                  {isActive && <ChevronRight className="w-3 h-3 text-indigo-400/60 shrink-0" />}
                 </button>
               );
             })}
@@ -233,41 +217,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-white/[0.05]">
-        {/* Divider gradient */}
-        <div className="h-px bg-gradient-to-r from-transparent via-white/8 to-transparent mb-3" />
-
-        <div className="flex items-center justify-between gap-2 px-2 py-2 rounded-xl hover:bg-white/[0.03] transition-colors group cursor-default">
-          <div className="flex items-center gap-2.5">
-            {/* Avatar */}
+      {/* User Status Footer */}
+      <div className="p-3 border-t border-border">
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-muted/40">
+          <div
+            onClick={!currentUser ? onOpenLogin : undefined}
+            className={cn(
+              "flex items-center gap-2.5 min-w-0 flex-1",
+              !currentUser && "cursor-pointer hover:opacity-85",
+            )}
+          >
             <div className="relative shrink-0">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 flex items-center justify-center font-bold text-xs text-white shadow-sm">
-                U
-              </div>
-              <span className={cn(
-                "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#060910]",
-                isConnected ? "bg-emerald-400" : "bg-rose-400"
-              )} />
+              <Avatar
+                size="sm"
+                className="bg-primary text-primary-foreground font-semibold"
+              >
+                {currentUser?.name ? currentUser.name[0].toUpperCase() : "U"}
+              </Avatar>
+              <span
+                className={cn(
+                  "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card",
+                  isConnected ? "bg-emerald-500" : "bg-rose-500",
+                )}
+              />
             </div>
-
-            <div className="min-w-0">
-              <div className="text-[12px] font-semibold text-slate-200 truncate leading-none mb-0.5">cli-user</div>
-              <div className="text-[10px] text-slate-500 leading-none">
-                {isConnected ? 'Socket Connected' : 'Reconnecting...'}
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-foreground truncate">
+                {currentUser?.name ||
+                  (currentUser?.email
+                    ? currentUser.email.split("@")[0]
+                    : "cli-user")}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                {currentUser
+                  ? currentUser.email || "Better Auth"
+                  : isConnected
+                    ? "Online · Sign In"
+                    : "Disconnected"}
               </div>
             </div>
           </div>
 
-          {pendingApprovalsCount > 0 && (
-            <button
-              onClick={() => setActiveTab('chat')}
-              className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all cursor-pointer"
-              title={`${pendingApprovalsCount} authorization needed`}
-            >
-              <ShieldAlert className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {currentUser ? (
+              <button
+                onClick={onSignOut}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                title="Sign out of Nova"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={onOpenLogin}
+                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Sign in with Better Auth"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {pendingApprovalsCount > 0 && (
+              <button
+                onClick={() => setActiveTab("chat")}
+                className="flex items-center justify-center w-6 h-6 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                title={`${pendingApprovalsCount} authorization needed`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </aside>

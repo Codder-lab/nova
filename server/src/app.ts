@@ -9,6 +9,8 @@ import taskRoutes from "./routes/task.routes";
 import reminderRoutes from "./routes/reminder.routes";
 import memoryRoutes from "./routes/memory.routes";
 import scheduleRoutes from "./routes/schedule.routes";
+import conversationRoutes from "./routes/conversation.routes";
+import { modelRouter } from "./routes/model.routes";
 
 export function createApp(): express.Application {
   const app = express();
@@ -54,6 +56,9 @@ export function createApp(): express.Application {
   app.use("/api/reminders", reminderRoutes);
   app.use("/api/memories", memoryRoutes);
   app.use("/api/schedules", scheduleRoutes);
+  app.use("/api/conversations", conversationRoutes);
+  app.use("/api/sessions", conversationRoutes);
+  app.use("/api/models", modelRouter);
 
   // 404 Handler
   app.use((_req: Request, res: Response) => {

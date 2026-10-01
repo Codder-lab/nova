@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { AgentEngine } from "../agents/agent.engine";
 import { AgentRunModel } from "../models/agent-run.model";
 
+import { Conversation, Message } from "../models/conversation.model";
+
 let engineFactory: () => AgentEngine = () => new AgentEngine();
 
 export function setApprovalEngineFactory(factory: () => AgentEngine): void {
@@ -17,6 +19,19 @@ export async function approveAction(
   try {
     const engine = engineFactory();
     const result = await engine.resume(runId, true);
+
+    // Update persisted assistant message in session
+    await Message.updateOne(
+      { runId },
+      {
+        $set: {
+          content: result.response,
+          steps: result.steps,
+          status: result.status,
+          pendingApproval: null,
+        },
+      },
+    ).catch(() => {});
 
     res.json({
       success: true,
@@ -34,6 +49,19 @@ export async function rejectAction(req: Request, res: Response): Promise<void> {
   try {
     const engine = engineFactory();
     const result = await engine.resume(runId, false);
+
+    // Update persisted assistant message in session
+    await Message.updateOne(
+      { runId },
+      {
+        $set: {
+          content: result.response,
+          steps: result.steps,
+          status: result.status,
+          pendingApproval: null,
+        },
+      },
+    ).catch(() => {});
 
     res.json({
       success: true,

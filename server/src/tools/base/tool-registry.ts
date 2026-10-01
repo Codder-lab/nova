@@ -27,14 +27,16 @@ export class ToolRegistry {
    * Retrieve a tool by its unique name
    */
   public get(name: string): AgentTool | undefined {
-    return this.tools.get(name);
+    const cleanName = name.replace(/^(default_api|tools|functions):/, "");
+    return this.tools.get(name) || this.tools.get(cleanName);
   }
 
   /**
    * Check if a tool exists
    */
   public has(name: string): boolean {
-    return this.tools.has(name);
+    const cleanName = name.replace(/^(default_api|tools|functions):/, "");
+    return this.tools.has(name) || this.tools.has(cleanName);
   }
 
   /**

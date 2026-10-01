@@ -1,4 +1,4 @@
-import { LLMProvider } from "./provider";
+import { LLMProvider, ProviderConnectionTestResult } from "./provider";
 import {
   LLMRequest,
   LLMResponse,
@@ -11,14 +11,86 @@ import { logger } from "../utils/logger";
 
 export class OllamaProvider implements LLMProvider {
   public readonly name = "ollama";
+  public readonly model: string;
+  public readonly baseUrl: string;
 
   constructor(
-    private readonly baseUrl: string = "http://localhost:11434",
-    private readonly model: string = "qwen2.5:7b",
-  ) {}
+    baseUrl: string = "http://localhost:11434",
+    model: string = "qwen2.5:7b",
+  ) {
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
+    this.model = model || "qwen2.5:7b";
+  }
 
   public supportsToolCalling(): boolean {
     return true;
+  }
+
+  public async testConnection(): Promise<ProviderConnectionTestResult> {
+    const start = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${this.baseUrl}/api/tags`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        return {
+          success: false,
+          latencyMs: Date.now() - start,
+          error: `HTTP ${res.status}: ${res.statusText}`,
+          model: this.model,
+        };
+      }
+
+      const data: any = await res.json();
+      const models = Array.isArray(data?.models)
+        ? data.models.map((m: any) => m.name || m.model)
+        : [];
+      const hasSelectedModel = models.some(
+        (m: string) => m === this.model || m.startsWith(`${this.model}:`),
+      );
+
+      return {
+        success: true,
+        latencyMs: Date.now() - start,
+        error: hasSelectedModel
+          ? undefined
+          : `Connected to Ollama, but model '${this.model}' is not pulled yet (found: ${models.slice(0, 3).join(", ") || "none"}).`,
+        model: this.model,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        latencyMs: Date.now() - start,
+        error:
+          err.name === "AbortError"
+            ? "Ollama connection timed out (5s)"
+            : err.message || "Failed to reach Ollama daemon",
+        model: this.model,
+      };
+    }
+  }
+
+  public static async listInstalledModels(
+    baseUrl: string = "http://localhost:11434",
+  ): Promise<string[]> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/tags`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) return [];
+      const data: any = await res.json();
+      if (!Array.isArray(data?.models)) return [];
+      return data.models.map((m: any) => m.name || m.model);
+    } catch {
+      return [];
+    }
   }
 
   public async generate(request: LLMRequest): Promise<LLMResponse> {

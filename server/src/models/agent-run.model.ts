@@ -1,8 +1,8 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import { AgentRunStatus, AgentStep, PendingApprovalAction } from "@nova/shared";
 
-export interface IAgentRun extends Document {
-  id: string;
+export interface IAgentRun {
+  id?: string;
   runId: string;
   userId: string;
   conversationId?: string;
@@ -14,6 +14,11 @@ export interface IAgentRun extends Document {
   pendingApproval?: PendingApprovalAction;
   toolCallsCount: number;
   durationMs: number;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
   metadata?: Record<string, unknown>;
   startedAt: Date;
   completedAt?: Date;
@@ -99,6 +104,11 @@ const AgentRunSchema = new Schema<IAgentRun>(
     error: { type: String },
     toolCallsCount: { type: Number, default: 0 },
     durationMs: { type: Number, default: 0 },
+    provider: { type: String, default: "ollama", index: true },
+    model: { type: String, default: "qwen2.5:7b", index: true },
+    promptTokens: { type: Number, default: 0 },
+    completionTokens: { type: Number, default: 0 },
+    totalTokens: { type: Number, default: 0 },
     metadata: { type: Schema.Types.Mixed, default: {} },
     startedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },

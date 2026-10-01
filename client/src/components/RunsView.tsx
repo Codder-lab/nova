@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   History,
   Clock,
@@ -13,11 +13,10 @@ import {
   CheckCircle,
   XCircle,
   Timer,
-} from 'lucide-react';
-import { api } from '../services/api';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { api } from "../services/api";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export const RunsView: React.FC = () => {
   const [runs, setRuns] = useState<any[]>([]);
@@ -36,7 +35,9 @@ export const RunsView: React.FC = () => {
     }
   };
 
-  useEffect(() => { loadRuns(); }, []);
+  useEffect(() => {
+    loadRuns();
+  }, []);
 
   const toggleExpand = (runId: string) => {
     setExpandedRunId(expandedRunId === runId ? null : runId);
@@ -44,180 +45,217 @@ export const RunsView: React.FC = () => {
 
   const getStatusVariant = (status: string) => {
     const map: Record<string, any> = {
-      completed: 'success',
-      failed: 'destructive',
-      waiting_for_approval: 'warning',
-      running: 'default',
+      completed: "success",
+      failed: "destructive",
+      waiting_for_approval: "warning",
+      running: "default",
     };
-    return map[status] || 'secondary';
+    return map[status] || "secondary";
   };
 
   const stats = {
     total: runs.length,
-    completed: runs.filter((r) => r.status === 'completed').length,
-    failed: runs.filter((r) => r.status === 'failed').length,
+    completed: runs.filter((r) => r.status === "completed").length,
+    failed: runs.filter((r) => r.status === "failed").length,
     avgDuration: runs.length
-      ? Math.round(runs.reduce((acc, r) => acc + (r.durationMs || 0), 0) / runs.length)
+      ? Math.round(
+          runs.reduce((acc, r) => acc + (r.durationMs || 0), 0) / runs.length,
+        )
       : 0,
   };
 
   return (
-    <div className="space-y-6 fade-in-up">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-2">
-        <div className="p-1.5 rounded-lg bg-purple-500/15 text-purple-400 mt-0.5">
-          <History className="w-4 h-4" />
-        </div>
+      <div className="flex items-center gap-2">
+        <History className="w-5 h-5 text-foreground" />
         <div>
-          <h2 className="text-xl font-black tracking-tight text-white font-['Outfit',sans-serif]">
-            Agent Execution History
+          <h2 className="text-lg font-semibold text-foreground tracking-tight">
+            Execution Runs & Audit Log
           </h2>
-          <p className="text-sm text-slate-400 mt-0.5">
-            Full lifecycle persistence in MongoDB Atlas. Inspect thoughts, steps, and tool invocations.
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Trace execution history, token latency, tool invocations, and agent
+            steps.
           </p>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Row */}
       {!loading && runs.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Runs', value: stats.total, icon: TrendingUp, color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20', hover: 'stat-card-indigo' },
-            { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', hover: 'stat-card-emerald' },
-            { label: 'Failed', value: stats.failed, icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', hover: 'stat-card-amber' },
-            { label: 'Avg Duration', value: `${stats.avgDuration}ms`, icon: Timer, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20', hover: 'stat-card-cyan' },
+            { label: "Total Runs", value: stats.total, icon: TrendingUp },
+            { label: "Completed", value: stats.completed, icon: CheckCircle },
+            { label: "Failed", value: stats.failed, icon: XCircle },
+            {
+              label: "Avg Duration",
+              value: `${stats.avgDuration}ms`,
+              icon: Timer,
+            },
           ].map((stat) => {
             const Icon = stat.icon;
             return (
-              <div
+              <Card
                 key={stat.label}
-                className={cn('flex items-center gap-3 p-4 rounded-2xl border transition-all duration-200', stat.bg, stat.hover)}
+                className="p-4 bg-card border-border shadow-xs"
               >
-                <div className={cn('p-2 rounded-xl bg-white/5', stat.color)}>
-                  <Icon className="w-4 h-4" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {stat.label}
+                  </span>
+                  <Icon className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <div>
-                  <div className="text-lg font-black text-white font-['Outfit',sans-serif]">{stat.value}</div>
-                  <div className="text-[11px] text-slate-400 font-medium">{stat.label}</div>
+                <div className="mt-2 text-2xl font-bold text-foreground">
+                  {stat.value}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-          </div>
-          <p className="text-sm font-medium">Loading execution logs...</p>
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin mb-2" />
+          <p className="text-xs">Loading execution runs...</p>
         </div>
       ) : runs.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center py-16 text-center border-dashed bg-transparent">
-          <div className="w-14 h-14 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center justify-center mb-4">
-            <History className="w-7 h-7 text-slate-600" />
+        <Card className="flex flex-col items-center justify-center py-14 text-center border-dashed bg-card/50">
+          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center mb-3">
+            <History className="w-5 h-5 text-muted-foreground" />
           </div>
-          <h3 className="font-bold text-slate-300 mb-1.5">No execution history yet</h3>
-          <p className="text-xs text-slate-500 max-w-xs">
-            Agent runs, tool call timelines, and audit logs will appear here once you start a conversation in Chat.
+          <h3 className="text-sm font-semibold text-foreground mb-1">
+            No execution history
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Agent runs, tool call logs, and audit trails will appear here once
+            actions are triggered in Chat.
           </p>
         </Card>
       ) : (
-        <div className="space-y-2.5">
-          {runs.map((r, idx) => {
+        <div className="space-y-2">
+          {runs.map((r) => {
             const isExpanded = expandedRunId === r.runId;
             return (
               <div
                 key={r.id || r.runId}
-                className="rounded-2xl border border-white/[0.06] bg-slate-900/50 hover:border-indigo-500/20 transition-all duration-200 overflow-hidden fade-in-up"
-                style={{ animationDelay: `${idx * 0.04}s` }}
+                className="rounded-md border border-border bg-card hover:bg-muted/20 transition-colors overflow-hidden"
               >
                 {/* Run Header */}
                 <div
-                  className="flex items-center gap-4 px-5 py-4 cursor-pointer select-none hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none hover:bg-muted/40 transition-colors"
                   onClick={() => toggleExpand(r.runId)}
                 >
-                  <div className={cn(
-                    "p-2 rounded-xl shrink-0",
-                    isExpanded ? "bg-indigo-500/20 text-indigo-400" : "bg-slate-800 text-slate-500"
-                  )}>
-                    {isExpanded
-                      ? <ChevronDown className="w-4 h-4" />
-                      : <ChevronRight className="w-4 h-4" />
-                    }
+                  <div className="p-1 rounded bg-secondary text-muted-foreground shrink-0">
+                    {isExpanded ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-slate-100 truncate mb-1.5">
+                    <div className="text-xs sm:text-sm font-medium text-foreground truncate mb-1">
                       {r.goal}
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
-                      <span className="font-mono">{r.runId?.substring(0, 10)}…</span>
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+                      <span className="font-mono text-xs">
+                        {r.runId?.substring(0, 8)}…
+                      </span>
                       <span>·</span>
-                      <span>{new Date(r.createdAt || r.startedAt).toLocaleString()}</span>
+                      <span>
+                        {new Date(r.createdAt || r.startedAt).toLocaleString()}
+                      </span>
                       <span>·</span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" /> {r.durationMs || 0}ms
                       </span>
                       <span className="flex items-center gap-1">
-                        <Wrench className="w-3 h-3" /> {r.toolCallsCount || 0} tools
+                        <Wrench className="w-3 h-3" /> {r.toolCallsCount || 0}{" "}
+                        tools
                       </span>
+                      {r.model && (
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-muted text-foreground border border-border">
+                          {r.provider ? `${r.provider}/` : ""}
+                          {r.model}
+                        </span>
+                      )}
+                      {Boolean(r.totalTokens) && (
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {r.totalTokens} tokens
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <Badge variant={getStatusVariant(r.status)} className="shrink-0">{r.status}</Badge>
+                  <Badge
+                    variant={getStatusVariant(r.status)}
+                    className="shrink-0 text-[10px] px-1.5 py-0"
+                  >
+                    {r.status}
+                  </Badge>
                 </div>
 
                 {/* Expanded Details */}
                 {isExpanded && (
-                  <div className="px-5 pb-5 pt-1 space-y-4 border-t border-white/[0.05] bg-black/20">
+                  <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border bg-muted/20">
                     {r.finalResponse && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          <Bot className="w-3 h-3 text-indigo-400" /> Final Response
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          <Bot className="w-3 h-3 text-muted-foreground" />{" "}
+                          Final Response
                         </div>
-                        <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+                        <div className="p-3 rounded-md bg-background border border-border text-xs text-foreground whitespace-pre-wrap leading-relaxed">
                           {r.finalResponse}
                         </div>
                       </div>
                     )}
 
                     {r.steps?.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          <Terminal className="w-3 h-3 text-cyan-400" /> Step Trace ({r.steps.length})
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          <Terminal className="w-3 h-3 text-muted-foreground" />{" "}
+                          Step Trace ({r.steps.length})
                         </div>
                         <div className="space-y-1.5">
                           {r.steps.map((step: any, i: number) => (
                             <div
                               key={i}
-                              className={cn(
-                                "p-3 rounded-xl border text-xs",
-                                step.type === 'tool'
-                                  ? "bg-indigo-950/30 border-indigo-500/15"
-                                  : "bg-cyan-950/20 border-cyan-500/10"
-                              )}
+                              className="p-2.5 rounded-md border border-border bg-background text-xs"
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2 font-medium text-slate-200">
-                                  {step.type === 'tool'
-                                    ? <Wrench className="w-3 h-3 text-indigo-400" />
-                                    : <Sparkles className="w-3 h-3 text-cyan-400" />
-                                  }
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2 font-medium text-foreground">
+                                  {step.type === "tool" ? (
+                                    <Wrench className="w-3 h-3 text-muted-foreground" />
+                                  ) : (
+                                    <Sparkles className="w-3 h-3 text-muted-foreground" />
+                                  )}
                                   <span>{step.title}</span>
                                 </div>
-                                <Badge variant={getStatusVariant(step.status)}>{step.status}</Badge>
+                                <Badge
+                                  variant={getStatusVariant(step.status)}
+                                  className="text-[10px] px-1.5 py-0"
+                                >
+                                  {step.status}
+                                </Badge>
                               </div>
 
                               {step.toolCall && (
-                                <div className="space-y-1.5 font-mono text-[10px]">
-                                  <pre className="p-2 rounded bg-black/50 text-indigo-300 overflow-x-auto whitespace-pre-wrap max-h-[100px]">
-                                    {JSON.stringify(step.toolCall.arguments, null, 2)}
+                                <div className="space-y-1.5 font-mono text-[10px] mt-1.5">
+                                  <pre className="p-2 rounded bg-secondary text-secondary-foreground overflow-x-auto whitespace-pre-wrap max-h-28 border border-border">
+                                    {JSON.stringify(
+                                      step.toolCall.arguments,
+                                      null,
+                                      2,
+                                    )}
                                   </pre>
                                   {step.toolCall.result !== undefined && (
-                                    <pre className="p-2 rounded bg-black/50 text-emerald-300 overflow-x-auto whitespace-pre-wrap max-h-[100px]">
-                                      {JSON.stringify(step.toolCall.result, null, 2)}
+                                    <pre className="p-2 rounded bg-secondary text-secondary-foreground overflow-x-auto whitespace-pre-wrap max-h-28 border border-border">
+                                      {JSON.stringify(
+                                        step.toolCall.result,
+                                        null,
+                                        2,
+                                      )}
                                     </pre>
                                   )}
                                 </div>

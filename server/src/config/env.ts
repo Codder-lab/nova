@@ -21,6 +21,7 @@ const envSchema = z.object({
     .min(16, "JWT_SECRET must be at least 16 characters")
     .default("supersecret_nova_jwt_dev_key_at_least_32_chars!"),
   JWT_EXPIRES_IN: z.string().default("7d"),
+  BETTER_AUTH_SECRET: z.string().optional(),
 
   // LLM Provider
   LLM_PROVIDER: z

@@ -14,6 +14,7 @@ import { getLLMProvider } from "../llm";
 import { ToolRegistry, globalToolRegistry } from "../tools/base/tool-registry";
 import { ToolContext } from "../tools/base/agent-tool.interface";
 import { AgentRunModel } from "../models/agent-run.model";
+import { Message } from "../models/conversation.model";
 import { memoryService } from "../services/memory.service";
 import { socketService } from "../services/socket.service";
 import { permissionEngine } from "./agent.permissions";
@@ -69,9 +70,17 @@ Rules:
     let finalResponse = "";
     let llmCallCount = 0;
     let isFinished = false;
+    let promptTokens = 0;
+    let completionTokens = 0;
 
     logger.info(
-      { runId, goal: input.goal, userId: input.userId },
+      {
+        runId,
+        goal: input.goal,
+        userId: input.userId,
+        provider: this.llm.name,
+        model: this.llm.model,
+      },
       "Starting Agent execution run",
     );
 
@@ -113,6 +122,8 @@ Rules:
           conversationId: input.conversationId,
           goal: input.goal,
           status: "running",
+          provider: this.llm.name,
+          model: this.llm.model,
           steps: [initialStep],
           startedAt: new Date(),
           metadata: input.metadata || {},
@@ -137,8 +148,45 @@ Rules:
 
     const messages: ChatMessage[] = [
       { role: "system", content: this.buildSystemPrompt(memoryContext) },
-      { role: "user", content: input.goal },
     ];
+
+    // Load recent conversation history for multi-turn session context
+    if (isDbConnected && input.conversationId) {
+      try {
+        const historyDocs = await Message.find({
+          conversationId: input.conversationId,
+        })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean();
+
+        // Reverse to chronological order
+        historyDocs.reverse();
+
+        for (const doc of historyDocs) {
+          // Skip if this doc is the exact user goal that was just saved for this turn
+          if (doc.role === "user" && doc.content === input.goal) {
+            continue;
+          }
+          if (doc.role === "user" || doc.role === "assistant") {
+            if (doc.content && doc.content.trim()) {
+              messages.push({
+                role: doc.role,
+                content: doc.content,
+              });
+            }
+          }
+        }
+      } catch (histErr: any) {
+        logger.warn(
+          { error: histErr.message },
+          "Failed loading session history",
+        );
+      }
+    }
+
+    // Append current user goal
+    messages.push({ role: "user", content: input.goal });
 
     while (!isFinished && llmCallCount < maxLLMCalls) {
       // Timeout guard
@@ -166,6 +214,11 @@ Rules:
           tools: toolDefinitions,
           temperature: 0.1,
         });
+
+        if (llmResponse.usage) {
+          promptTokens += llmResponse.usage.promptTokens || 0;
+          completionTokens += llmResponse.usage.completionTokens || 0;
+        }
       } catch (err: any) {
         logger.error({ runId, err: err.message }, "LLM generation failed");
         const errorResult: AgentResult = {
@@ -401,6 +454,14 @@ Rules:
         finalResponse = llmResponse.content.trim();
         isFinished = true;
 
+        // Emit real-time streaming tokens to connected clients
+        if (finalResponse) {
+          const chunks = finalResponse.split(/(\s+)/);
+          for (const chunk of chunks) {
+            socketService.emitToken(input.userId, runId, chunk);
+          }
+        }
+
         const responseStep: AgentStep = {
           id: uuidv4(),
           stepNumber,
@@ -432,6 +493,9 @@ Rules:
         llmCallCount,
         stepsCount: steps.length,
         status: finalStatus,
+        provider: this.llm.name,
+        model: this.llm.model,
+        totalTokens: promptTokens + completionTokens,
       },
       "Agent run completed",
     );
@@ -447,6 +511,11 @@ Rules:
             steps,
             toolCallsCount,
             durationMs,
+            provider: this.llm.name,
+            model: this.llm.model,
+            promptTokens,
+            completionTokens,
+            totalTokens: promptTokens + completionTokens,
             completedAt: new Date(),
           },
         },
@@ -463,6 +532,11 @@ Rules:
       steps,
       toolCallsCount,
       durationMs,
+      provider: this.llm.name,
+      model: this.llm.model,
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
     };
 
     if (finalStatus === "completed") {
