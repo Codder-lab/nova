@@ -23,6 +23,7 @@ import path from 'path';
 
 class MockPhase3LLM implements LLMProvider {
   name = 'mock-phase3-llm';
+  model = 'mock-phase3-model';
 
   supportsToolCalling(): boolean {
     return true;

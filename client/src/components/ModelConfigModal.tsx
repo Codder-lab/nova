@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,16 @@ import {
   Loader2,
   Zap,
   Cpu,
-  Brain,
-  Sparkles,
   ShieldCheck,
   Save,
+  Gift,
+  ExternalLink,
+  RefreshCw,
+  Search,
 } from "lucide-react";
 import { api } from "../services/api";
 import type { ModelInfo, ModelUsageMetrics } from "@nova/shared";
+import { cn } from "@/lib/utils";
 
 interface ModelConfigModalProps {
   open: boolean;
@@ -43,10 +46,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const [activeTab, setActiveTab] = useState<string>("providers");
 
   // Form state
-  const [openaiKey, setOpenaiKey] = useState<string>("");
-  const [anthropicKey, setAnthropicKey] = useState<string>("");
-  const [geminiKey, setGeminiKey] = useState<string>("");
-  const [groqKey, setGroqKey] = useState<string>("");
+  const [openrouterKey, setOpenrouterKey] = useState<string>("");
   const [ollamaUrl, setOllamaUrl] = useState<string>("http://localhost:11434");
   const [temperature, setTemperature] = useState<number>(0.1);
   const [maxTokens, setMaxTokens] = useState<number>(4096);
@@ -57,6 +57,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [refreshingCatalog, setRefreshingCatalog] = useState(false);
 
   // Benchmark state
   const [testProvider, setTestProvider] = useState<string>(
@@ -76,6 +77,10 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   // Metrics state
   const [metrics, setMetrics] = useState<ModelUsageMetrics[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(false);
+
+  // Catalog search & filter state
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogFilter, setCatalogFilter] = useState<"all" | "free" | "local" | "paid">("all");
 
   useEffect(() => {
     if (open) {
@@ -124,10 +129,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
 
     try {
       const apiKeys: Record<string, string> = {};
-      if (openaiKey.trim()) apiKeys.openai = openaiKey.trim();
-      if (anthropicKey.trim()) apiKeys.anthropic = anthropicKey.trim();
-      if (geminiKey.trim()) apiKeys.gemini = geminiKey.trim();
-      if (groqKey.trim()) apiKeys.groq = groqKey.trim();
+      if (openrouterKey.trim()) apiKeys.openrouter = openrouterKey.trim();
 
       const customBaseUrls: Record<string, string> = {};
       if (ollamaUrl.trim()) customBaseUrls.ollama = ollamaUrl.trim();
@@ -142,10 +144,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
 
       if (res?.success) {
         setSaveSuccess(true);
-        setOpenaiKey("");
-        setAnthropicKey("");
-        setGeminiKey("");
-        setGroqKey("");
+        setOpenrouterKey("");
         await loadCurrentConfig();
         onModelSwitched?.();
         setTimeout(() => setSaveSuccess(false), 3000);
@@ -154,6 +153,18 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
       console.error("Failed updating model settings:", err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRefreshCatalog = async () => {
+    setRefreshingCatalog(true);
+    try {
+      await api.refreshModels();
+      onModelSwitched?.();
+    } catch (err) {
+      console.error("Failed refreshing models:", err);
+    } finally {
+      setRefreshingCatalog(false);
     }
   };
 
@@ -180,26 +191,37 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     }
   };
 
-  const getProviderIcon = (provider: string) => {
-    switch (provider) {
-      case "ollama":
-        return <Cpu className="w-4 h-4 text-emerald-500" />;
-      case "openai":
-        return <Zap className="w-4 h-4 text-sky-500" />;
-      case "anthropic":
-        return <Brain className="w-4 h-4 text-amber-500" />;
-      case "gemini":
-        return <Sparkles className="w-4 h-4 text-purple-500" />;
-      case "groq":
-        return <Zap className="w-4 h-4 text-orange-500" />;
-      default:
-        return <Cpu className="w-4 h-4 text-muted-foreground" />;
+  const getProviderIcon = (provider: string, isFree?: boolean) => {
+    if (provider === "ollama") {
+      return <Cpu className="w-4 h-4 text-emerald-500" />;
     }
+    if (isFree) {
+      return <Gift className="w-4 h-4 text-amber-500" />;
+    }
+    return <Zap className="w-4 h-4 text-sky-500" />;
   };
 
   const totalRunsAll = metrics.reduce((acc, m) => acc + m.totalRuns, 0);
   const totalTokensAll = metrics.reduce((acc, m) => acc + m.totalTokens, 0);
   const totalCostAll = metrics.reduce((acc, m) => acc + m.estimatedCostUsd, 0);
+
+  const filteredCatalog = useMemo(() => {
+    return catalog.filter((m) => {
+      if (catalogFilter === "free" && !m.isFree) return false;
+      if (catalogFilter === "local" && !m.isLocal) return false;
+      if (catalogFilter === "paid" && (m.isFree || m.isLocal)) return false;
+
+      if (catalogSearch.trim()) {
+        const query = catalogSearch.toLowerCase();
+        return (
+          m.name.toLowerCase().includes(query) ||
+          m.id.toLowerCase().includes(query) ||
+          m.providerName.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    });
+  }, [catalog, catalogFilter, catalogSearch]);
 
   return (
     <Dialog
@@ -213,7 +235,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
             <div className="p-1.5 rounded-md bg-primary/10 text-primary">
               <Cpu className="w-4 h-4" />
             </div>
-            <span>Multi-Model Settings & Benchmarks</span>
+            <span>AI Model Settings & OpenRouter Catalog</span>
           </div>
         </DialogTitle>
       </DialogHeader>
@@ -229,7 +251,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
             className="flex items-center gap-1.5 text-xs"
           >
             <Key className="w-3.5 h-3.5" />
-            <span>API Keys</span>
+            <span>Providers</span>
           </TabsTrigger>
           <TabsTrigger
             value="benchmark"
@@ -243,7 +265,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
             className="flex items-center gap-1.5 text-xs"
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>Catalog</span>
+            <span>Catalog ({catalog.length})</span>
           </TabsTrigger>
           <TabsTrigger
             value="metrics"
@@ -255,22 +277,22 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         </TabsList>
 
         <div className="flex-1 overflow-y-auto mt-4 pr-1">
-          {/* TAB 1: API Keys & Configuration */}
+          {/* TAB 1: Providers & API Keys */}
           <TabsContent value="providers" className="mt-0 space-y-4">
             <form onSubmit={handleSaveConfig} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Ollama URL */}
-                <div className="space-y-1.5 p-3 rounded-lg border border-border bg-card/50">
+                {/* 1. Ollama (Local) */}
+                <div className="space-y-2 p-3.5 rounded-lg border border-border bg-card/60">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Cpu className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Ollama Daemon URL</span>
+                    <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                      <Cpu className="w-4 h-4 text-emerald-500" />
+                      <span>Ollama (Local Models)</span>
                     </label>
                     <Badge
                       variant="outline"
                       className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
                     >
-                      Local
+                      Offline / Free
                     </Badge>
                   </div>
                   <Input
@@ -279,19 +301,19 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                     placeholder="http://localhost:11434"
                     className="h-8 text-xs font-mono"
                   />
-                  <p className="text-[10px] text-muted-foreground">
-                    Default endpoint for local offline inference
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Local daemon for offline models like Qwen 2.5, Llama 3.2, and DeepSeek R1 without cloud dependencies.
                   </p>
                 </div>
 
-                {/* Groq API Key */}
-                <div className="space-y-1.5 p-3 rounded-lg border border-border bg-card/50">
+                {/* 2. OpenRouter (Cloud) */}
+                <div className="space-y-2 p-3.5 rounded-lg border border-border bg-card/60">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-orange-500" />
-                      <span>Groq LPU Key</span>
+                    <label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                      <Zap className="w-4 h-4 text-sky-500" />
+                      <span>OpenRouter API Key</span>
                     </label>
-                    {configuredProviders.groq ? (
+                    {configuredProviders.openrouter ? (
                       <Badge
                         variant="outline"
                         className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
@@ -301,7 +323,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                     ) : (
                       <Badge
                         variant="outline"
-                        className="text-[10px] text-muted-foreground"
+                        className="text-[10px] text-amber-600 border-amber-500/30 bg-amber-500/10"
                       >
                         Not Set
                       </Badge>
@@ -309,119 +331,23 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   </div>
                   <Input
                     type="password"
-                    value={groqKey}
-                    onChange={(e) => setGroqKey(e.target.value)}
-                    placeholder={maskedKeys.groq || "gsk_..."}
+                    value={openrouterKey}
+                    onChange={(e) => setOpenrouterKey(e.target.value)}
+                    placeholder={maskedKeys.openrouter || "sk-or-v1-..."}
                     className="h-8 text-xs font-mono"
                   />
-                  <p className="text-[10px] text-muted-foreground">
-                    Ultra-fast sub-second LPU inference
-                  </p>
-                </div>
-
-                {/* OpenAI Key */}
-                <div className="space-y-1.5 p-3 rounded-lg border border-border bg-card/50">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-sky-500" />
-                      <span>OpenAI API Key</span>
-                    </label>
-                    {configuredProviders.openai ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                      >
-                        Configured
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] text-muted-foreground"
-                      >
-                        Not Set
-                      </Badge>
-                    )}
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Access 300+ models. Free models require no credits.</span>
+                    <a
+                      href="https://openrouter.ai/keys"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline flex items-center gap-0.5 font-medium shrink-0"
+                    >
+                      <span>Get Key</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
                   </div>
-                  <Input
-                    type="password"
-                    value={openaiKey}
-                    onChange={(e) => setOpenaiKey(e.target.value)}
-                    placeholder={maskedKeys.openai || "sk-..."}
-                    className="h-8 text-xs font-mono"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    For GPT-4o, GPT-4o Mini, and o3-mini
-                  </p>
-                </div>
-
-                {/* Anthropic Key */}
-                <div className="space-y-1.5 p-3 rounded-lg border border-border bg-card/50">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Brain className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Anthropic API Key</span>
-                    </label>
-                    {configuredProviders.anthropic ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                      >
-                        Configured
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] text-muted-foreground"
-                      >
-                        Not Set
-                      </Badge>
-                    )}
-                  </div>
-                  <Input
-                    type="password"
-                    value={anthropicKey}
-                    onChange={(e) => setAnthropicKey(e.target.value)}
-                    placeholder={maskedKeys.anthropic || "sk-ant-..."}
-                    className="h-8 text-xs font-mono"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    For Claude 3.5 Sonnet & Haiku
-                  </p>
-                </div>
-
-                {/* Gemini Key */}
-                <div className="space-y-1.5 p-3 rounded-lg border border-border bg-card/50 sm:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                      <span>Google Gemini Key</span>
-                    </label>
-                    {configuredProviders.gemini ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                      >
-                        Configured
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] text-muted-foreground"
-                      >
-                        Not Set
-                      </Badge>
-                    )}
-                  </div>
-                  <Input
-                    type="password"
-                    value={geminiKey}
-                    onChange={(e) => setGeminiKey(e.target.value)}
-                    placeholder={maskedKeys.gemini || "AIzaSy..."}
-                    className="h-8 text-xs font-mono"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    For Gemini 1.5 Flash, 1.5 Pro & 2.0 Flash
-                  </p>
                 </div>
               </div>
 
@@ -465,7 +391,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />
                   <span className="text-xs text-muted-foreground">
-                    API keys are securely stored in your database
+                    Your OpenRouter key is securely stored in your local database
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -501,8 +427,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   Test Provider Latency & Connectivity
                 </h4>
                 <p className="text-xs text-muted-foreground">
-                  Send a lightweight diagnostic ping to verify whether the model
-                  is accessible and calculate round-trip latency.
+                  Send a lightweight diagnostic ping to verify whether Ollama or OpenRouter is reachable.
                 </p>
               </div>
 
@@ -522,10 +447,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                     className="w-full h-8 text-xs px-2.5 rounded-md border border-input bg-background text-foreground"
                   >
                     <option value="ollama">Ollama (Local)</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="gemini">Google Gemini</option>
-                    <option value="groq">Groq (LPU)</option>
+                    <option value="openrouter">OpenRouter (Cloud)</option>
                   </select>
                 </div>
 
@@ -540,6 +462,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   >
                     {catalog
                       .filter((m) => m.provider === testProvider)
+                      .slice(0, 50)
                       .map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name} ({m.id})
@@ -604,10 +527,55 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </TabsContent>
 
           {/* TAB 3: Model Capability Catalog */}
-          <TabsContent value="matrix" className="mt-0 space-y-2">
-            <div className="border border-border rounded-lg overflow-hidden max-h-[360px] overflow-y-auto">
+          <TabsContent value="matrix" className="mt-0 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={catalogSearch}
+                  onChange={(e) => setCatalogSearch(e.target.value)}
+                  placeholder="Filter models..."
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+
+              <div className="flex items-center gap-1">
+                {(["all", "free", "local", "paid"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setCatalogFilter(tab)}
+                    className={cn(
+                      "px-2 py-1 rounded text-[10px] font-medium capitalize transition-colors cursor-pointer",
+                      catalogFilter === tab
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "bg-secondary text-secondary-foreground hover:bg-muted",
+                    )}
+                  >
+                    {tab === "free" ? "Free 🎁" : tab}
+                  </button>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshCatalog}
+                  disabled={refreshingCatalog}
+                  className="h-8 px-2 gap-1 text-xs shrink-0"
+                  title="Force re-fetch models from OpenRouter"
+                >
+                  <RefreshCw
+                    className={cn("w-3.5 h-3.5", refreshingCatalog && "animate-spin")}
+                  />
+                  <span>Refresh</span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="border border-border rounded-lg overflow-hidden max-h-[340px] overflow-y-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-muted text-muted-foreground uppercase text-[10px] font-semibold tracking-wider sticky top-0">
+                <thead className="bg-muted text-muted-foreground uppercase text-[10px] font-semibold tracking-wider sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2">Model</th>
                     <th className="px-3 py-2">Provider</th>
@@ -617,7 +585,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {catalog.map((m) => {
+                  {filteredCatalog.map((m) => {
                     const isActive =
                       m.id === activeModel && m.provider === activeProvider;
                     return (
@@ -631,7 +599,7 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                       >
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1.5">
-                            {getProviderIcon(m.provider)}
+                            {getProviderIcon(m.provider, m.isFree)}
                             <span className="text-foreground">{m.name}</span>
                             {isActive && (
                               <Badge
@@ -654,12 +622,19 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                             >
                               Local
                             </Badge>
+                          ) : m.isFree ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/30"
+                            >
+                              OpenRouter Free
+                            </Badge>
                           ) : (
                             <Badge
                               variant="outline"
                               className="text-[9px] px-1.5 py-0 text-muted-foreground"
                             >
-                              Cloud
+                              OpenRouter
                             </Badge>
                           )}
                         </td>
@@ -676,9 +651,9 @@ export const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                           )}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground font-mono">
-                          {m.costPer1kInput === 0 ? (
-                            <span className="text-emerald-600 font-medium">
-                              Free
+                          {m.isFree || m.costPer1kInput === 0 ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                              Free 🎁
                             </span>
                           ) : (
                             <span>${m.costPer1kInput?.toFixed(5)}</span>

@@ -6,15 +6,11 @@ export interface IModelConfig extends Document {
   activeProvider: ModelProviderType;
   activeModel: string;
   apiKeys: {
-    openai?: string;
-    anthropic?: string;
-    gemini?: string;
-    groq?: string;
+    openrouter?: string;
   };
   customBaseUrls: {
     ollama?: string;
-    openai?: string;
-    groq?: string;
+    openrouter?: string;
   };
   temperature: number;
   maxTokens?: number;
@@ -27,7 +23,7 @@ const ModelConfigSchema = new Schema<IModelConfig>(
     userId: { type: String, required: true, unique: true, index: true },
     activeProvider: {
       type: String,
-      enum: ["ollama", "openai", "anthropic", "gemini", "groq"],
+      enum: ["ollama", "openrouter"],
       default: "ollama",
     },
     activeModel: {
@@ -35,15 +31,11 @@ const ModelConfigSchema = new Schema<IModelConfig>(
       default: "qwen2.5:7b",
     },
     apiKeys: {
-      openai: { type: String, default: "" },
-      anthropic: { type: String, default: "" },
-      gemini: { type: String, default: "" },
-      groq: { type: String, default: "" },
+      openrouter: { type: String, default: "" },
     },
     customBaseUrls: {
       ollama: { type: String, default: "http://localhost:11434" },
-      openai: { type: String, default: "" },
-      groq: { type: String, default: "" },
+      openrouter: { type: String, default: "" },
     },
     temperature: { type: Number, default: 0.1 },
     maxTokens: { type: Number, default: 4096 },

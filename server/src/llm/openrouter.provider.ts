@@ -9,26 +9,33 @@ import {
 } from "@nova/shared";
 import { logger } from "../utils/logger";
 
-export class OpenAIProvider implements LLMProvider {
-  public readonly name: string;
+export interface OpenRouterProviderOptions {
+  apiKey?: string;
+  model?: string;
+  baseUrl?: string;
+}
+
+export class OpenRouterProvider implements LLMProvider {
+  public readonly name: string = "openrouter";
   public readonly model: string;
   public readonly baseUrl: string;
   private readonly apiKey: string;
+  private readonly headers: Record<string, string>;
 
-  constructor(options: {
-    name?: string;
-    apiKey?: string;
-    baseUrl?: string;
-    model?: string;
-  }) {
-    this.name = options.name || "openai";
-    this.apiKey = options.apiKey || process.env.OPENAI_API_KEY || "";
+  constructor(options?: OpenRouterProviderOptions) {
+    this.apiKey = options?.apiKey || process.env.OPENROUTER_API_KEY || "";
     this.baseUrl = (
-      options.baseUrl ||
-      process.env.OPENAI_BASE_URL ||
-      "https://api.openai.com/v1"
+      options?.baseUrl ||
+      process.env.OPENROUTER_BASE_URL ||
+      "https://openrouter.ai/api/v1"
     ).replace(/\/+$/, "");
-    this.model = options.model || "gpt-4o-mini";
+    this.model = options?.model || "meta-llama/llama-3.3-70b-instruct:free";
+
+    const siteUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    this.headers = {
+      "HTTP-Referer": siteUrl,
+      "X-Title": "Nova AI Assistant",
+    };
   }
 
   public supportsToolCalling(): boolean {
@@ -41,7 +48,7 @@ export class OpenAIProvider implements LLMProvider {
       return {
         success: false,
         latencyMs: 0,
-        error: `API key is not configured for ${this.name}. Please enter your API key in Settings.`,
+        error: "API key is not configured for OpenRouter. Please configure your key in Model Settings.",
         model: this.model,
       };
     }
@@ -54,6 +61,7 @@ export class OpenAIProvider implements LLMProvider {
         method: "GET",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
+          ...this.headers,
         },
         signal: controller.signal,
       });
@@ -91,7 +99,7 @@ export class OpenAIProvider implements LLMProvider {
   public async generate(request: LLMRequest): Promise<LLMResponse> {
     if (!this.apiKey) {
       throw new Error(
-        `API key is missing for provider '${this.name}'. Please configure your key in Model Settings.`,
+        "OpenRouter API key is missing. Please configure your OpenRouter key in Model Settings.",
       );
     }
 
@@ -123,15 +131,14 @@ export class OpenAIProvider implements LLMProvider {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
+          ...this.headers,
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `${this.name} API error (${response.status}): ${errorText}`,
-        );
+        throw new Error(`OpenRouter API error (${response.status}): ${errorText}`);
       }
 
       const data: any = await response.json();
@@ -184,7 +191,7 @@ export class OpenAIProvider implements LLMProvider {
     } catch (error: any) {
       logger.error(
         { error: error.message, model: this.model, provider: this.name },
-        "OpenAI compatible generate failed",
+        "OpenRouter generate failed",
       );
       throw error;
     }
@@ -193,7 +200,7 @@ export class OpenAIProvider implements LLMProvider {
   public async *stream(request: LLMRequest): AsyncIterable<LLMChunk> {
     if (!this.apiKey) {
       throw new Error(
-        `API key is missing for provider '${this.name}'. Please configure your key in Model Settings.`,
+        "OpenRouter API key is missing. Please configure your OpenRouter key in Model Settings.",
       );
     }
 
@@ -224,6 +231,7 @@ export class OpenAIProvider implements LLMProvider {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.apiKey}`,
+        ...this.headers,
       },
       body: JSON.stringify(payload),
     });
@@ -231,7 +239,7 @@ export class OpenAIProvider implements LLMProvider {
     if (!response.ok || !response.body) {
       const errText = await response.text().catch(() => "");
       throw new Error(
-        `${this.name} stream error (${response.status}): ${errText || response.statusText}`,
+        `OpenRouter stream error (${response.status}): ${errText || response.statusText}`,
       );
     }
 

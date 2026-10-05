@@ -25,8 +25,9 @@ const envSchema = z.object({
 
   // LLM Provider
   LLM_PROVIDER: z
-    .enum(["ollama", "openai", "anthropic", "gemini"])
+    .enum(["ollama", "openrouter"])
     .default("ollama"),
+  OPENROUTER_API_KEY: z.string().optional(),
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
   OLLAMA_MODEL: z.string().default("qwen2.5:7b"),
 

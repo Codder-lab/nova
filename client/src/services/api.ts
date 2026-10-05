@@ -110,6 +110,12 @@ export const api = {
     return request(`${API_BASE}/models`);
   },
 
+  refreshModels: async () => {
+    return request(`${API_BASE}/models/refresh`, {
+      method: "POST",
+    });
+  },
+
   setActiveModel: async (provider: string, model: string) => {
     return request(`${API_BASE}/models/active`, {
       method: "POST",

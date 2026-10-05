@@ -5,3 +5,5 @@ export * from "./types/memory.types";
 export * from "./types/streaming.types";
 export * from "./types/schedule.types";
 export * from "./types/session.types";
+export * from "./types/integration.types";
+export * from "./types/analytics.types";

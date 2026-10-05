@@ -12,6 +12,8 @@ import {
   ChevronRight,
   LogIn,
   LogOut,
+  Blocks,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +27,8 @@ export type TabType =
   | "schedules"
   | "runs"
   | "research"
+  | "integrations"
+  | "analytics"
   | "settings";
 
 interface SidebarProps {
@@ -89,6 +93,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: "research" as TabType,
       label: "Web & Browser",
       icon: Globe,
+      group: "Operations",
+    },
+    {
+      id: "integrations" as TabType,
+      label: "Integrations Hub",
+      icon: Blocks,
+      group: "Operations",
+    },
+    {
+      id: "analytics" as TabType,
+      label: "Analytics",
+      icon: BarChart3,
       group: "Operations",
     },
     {

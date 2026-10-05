@@ -59,12 +59,7 @@ export interface LLMChunk {
   isDone: boolean;
 }
 
-export type ModelProviderType =
-  | "ollama"
-  | "openai"
-  | "anthropic"
-  | "gemini"
-  | "groq";
+export type ModelProviderType = "ollama" | "openrouter";
 
 export interface ModelInfo {
   id: string;
@@ -75,6 +70,7 @@ export interface ModelInfo {
   supportsTools: boolean;
   supportsStreaming: boolean;
   isLocal: boolean;
+  isFree?: boolean;
   description: string;
   costPer1kInput?: number; // in USD
   costPer1kOutput?: number; // in USD
@@ -87,15 +83,11 @@ export interface UserModelSettings {
   temperature?: number;
   maxTokens?: number;
   apiKeys?: {
-    openai?: string;
-    anthropic?: string;
-    gemini?: string;
-    groq?: string;
+    openrouter?: string;
   };
   customBaseUrls?: {
     ollama?: string;
-    openai?: string;
-    groq?: string;
+    openrouter?: string;
   };
 }
 

@@ -1,7 +1,7 @@
 import { ModelInfo } from "@nova/shared";
 
 export const DEFAULT_MODEL_CATALOG: ModelInfo[] = [
-  // --- Ollama (Local) ---
+  // --- Ollama (Local Models) ---
   {
     id: "qwen2.5:7b",
     name: "Qwen 2.5 7B",
@@ -11,6 +11,7 @@ export const DEFAULT_MODEL_CATALOG: ModelInfo[] = [
     supportsTools: true,
     supportsStreaming: true,
     isLocal: true,
+    isFree: true,
     description:
       "Alibaba's advanced open-weight model with strong tool calling and coding capabilities.",
     costPer1kInput: 0,
@@ -26,6 +27,7 @@ export const DEFAULT_MODEL_CATALOG: ModelInfo[] = [
     supportsTools: true,
     supportsStreaming: true,
     isLocal: true,
+    isFree: true,
     description:
       "Meta's lightweight local model with blazing speed on low-resource machines.",
     costPer1kInput: 0,
@@ -41,6 +43,7 @@ export const DEFAULT_MODEL_CATALOG: ModelInfo[] = [
     supportsTools: false,
     supportsStreaming: true,
     isLocal: true,
+    isFree: true,
     description:
       "DeepSeek's distilled reasoning model specializing in math and logical problem solving.",
     costPer1kInput: 0,
@@ -56,169 +59,12 @@ export const DEFAULT_MODEL_CATALOG: ModelInfo[] = [
     supportsTools: true,
     supportsStreaming: true,
     isLocal: true,
+    isFree: true,
     description:
       "Mistral AI's standard 7B model with strong instruction following.",
     costPer1kInput: 0,
     costPer1kOutput: 0,
     recommendedFor: "General assistant tasks",
   },
-
-  // --- OpenAI (Cloud) ---
-  {
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    provider: "openai",
-    providerName: "OpenAI",
-    contextWindow: 128000,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "Fast, cost-efficient model for quick agentic actions and structured function calls.",
-    costPer1kInput: 0.00015,
-    costPer1kOutput: 0.0006,
-    recommendedFor: "Affordable, high-speed multi-step agent runs",
-  },
-  {
-    id: "gpt-4o",
-    name: "GPT-4o (Omni)",
-    provider: "openai",
-    providerName: "OpenAI",
-    contextWindow: 128000,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "OpenAI flagship multimodal intelligence with exceptional complex reasoning and tool accuracy.",
-    costPer1kInput: 0.0025,
-    costPer1kOutput: 0.01,
-    recommendedFor: "Complex multi-step workflows & detailed planning",
-  },
-  {
-    id: "o3-mini",
-    name: "o3-mini (Reasoning)",
-    provider: "openai",
-    providerName: "OpenAI",
-    contextWindow: 200000,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "High-reasoning STEM model with deep contemplation steps and structured output.",
-    costPer1kInput: 0.0011,
-    costPer1kOutput: 0.0044,
-    recommendedFor: "Coding, math, science, and intricate logic",
-  },
-
-  // --- Anthropic (Cloud) ---
-  {
-    id: "claude-3-5-sonnet-20241022",
-    name: "Claude 3.5 Sonnet",
-    provider: "anthropic",
-    providerName: "Anthropic",
-    contextWindow: 200000,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "State-of-the-art coding and agentic reasoning model with nuanced tool comprehension.",
-    costPer1kInput: 0.003,
-    costPer1kOutput: 0.015,
-    recommendedFor: "Software engineering, research, complex tool chains",
-  },
-  {
-    id: "claude-3-5-haiku-20241022",
-    name: "Claude 3.5 Haiku",
-    provider: "anthropic",
-    providerName: "Anthropic",
-    contextWindow: 200000,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "Ultra-fast, budget-friendly Anthropic model with strong conversational and extraction skills.",
-    costPer1kInput: 0.0008,
-    costPer1kOutput: 0.004,
-    recommendedFor: "Fast interactive chats and real-time summaries",
-  },
-
-  // --- Google Gemini (Cloud) ---
-  {
-    id: "gemini-1.5-flash",
-    name: "Gemini 1.5 Flash",
-    provider: "gemini",
-    providerName: "Google Gemini",
-    contextWindow: 1048576,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "High-throughput 1M+ context window model engineered for speed and multimodal reasoning.",
-    costPer1kInput: 0.000075,
-    costPer1kOutput: 0.0003,
-    recommendedFor:
-      "Massive context documents, fast summarization, high volume",
-  },
-  {
-    id: "gemini-1.5-pro",
-    name: "Gemini 1.5 Pro",
-    provider: "gemini",
-    providerName: "Google Gemini",
-    contextWindow: 2097152,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "Google's 2M context flagship reasoning model with superior analysis over huge datasets.",
-    costPer1kInput: 0.00125,
-    costPer1kOutput: 0.005,
-    recommendedFor:
-      "Exhaustive long-context analysis & cross-document synthesis",
-  },
-  {
-    id: "gemini-3.8-flash",
-    name: "Gemini 3.8 Flash",
-    provider: "gemini",
-    providerName: "Google Gemini",
-    contextWindow: 1048576,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "Next-gen real-time multimodal intelligence with upgraded tool calling performance.",
-    costPer1kInput: 0.0001,
-    costPer1kOutput: 0.0004,
-    recommendedFor: "Cutting-edge real-time agent execution",
-  },
-
-  // --- Groq (Cloud - Ultra Fast LPU) ---
-  {
-    id: "llama-3.3-70b-versatile",
-    name: "Llama 3.3 70B (Groq)",
-    provider: "groq",
-    providerName: "Groq (LPU)",
-    contextWindow: 128000,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description:
-      "Groq LPU accelerated Meta Llama 3.3 running at 300+ tokens per second.",
-    costPer1kInput: 0.00059,
-    costPer1kOutput: 0.00079,
-    recommendedFor: "Instantaneous sub-second tool execution & rapid loops",
-  },
-  {
-    id: "mixtral-8x7b-32768",
-    name: "Mixtral 8x7B (Groq)",
-    provider: "groq",
-    providerName: "Groq (LPU)",
-    contextWindow: 32768,
-    supportsTools: true,
-    supportsStreaming: true,
-    isLocal: false,
-    description: "High-speed Mixture-of-Experts model powered by Groq LPUs.",
-    costPer1kInput: 0.00024,
-    costPer1kOutput: 0.00024,
-    recommendedFor: "Fast multi-lingual tasks & low latency",
-  },
 ];
+

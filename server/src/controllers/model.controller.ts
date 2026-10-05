@@ -1,12 +1,18 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { z } from "zod";
-import { DEFAULT_MODEL_CATALOG, getLLMProvider, OllamaProvider } from "../llm";
+import {
+  DEFAULT_MODEL_CATALOG,
+  getLLMProvider,
+  OllamaProvider,
+  getOpenRouterCatalog,
+  refreshOpenRouterCatalog,
+} from "../llm";
 import { ModelConfigModel } from "../models/model-config.model";
 import { AgentRunModel } from "../models/agent-run.model";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
-import { ModelInfo, ModelProviderType } from "@nova/shared";
+import { ModelInfo } from "@nova/shared";
 
 function getUserId(req: Request): string {
   return (
@@ -41,26 +47,31 @@ export async function listModels(req: Request, res: Response): Promise<void> {
     userConfig?.activeProvider || env.LLM_PROVIDER || "ollama";
   const activeModel =
     userConfig?.activeModel ||
-    (activeProvider === "ollama" ? env.OLLAMA_MODEL : "gpt-4o-mini");
+    (activeProvider === "ollama"
+      ? env.OLLAMA_MODEL
+      : "meta-llama/llama-3.3-70b-instruct:free");
 
   const ollamaBaseUrl =
     userConfig?.customBaseUrls?.ollama ||
     env.OLLAMA_BASE_URL ||
     "http://localhost:11434";
 
-  // Check dynamically installed models in local Ollama daemon
-  const catalog: ModelInfo[] = [...DEFAULT_MODEL_CATALOG];
+  const openRouterKey =
+    userConfig?.apiKeys?.openrouter || process.env.OPENROUTER_API_KEY || "";
+
+  // 1. Local Ollama models
+  const localCatalog: ModelInfo[] = [...DEFAULT_MODEL_CATALOG];
   try {
     const installedOllamaModels =
       await OllamaProvider.listInstalledModels(ollamaBaseUrl);
     for (const installedName of installedOllamaModels) {
-      const alreadyInCatalog = catalog.some(
+      const alreadyInCatalog = localCatalog.some(
         (m) =>
           m.provider === "ollama" &&
           (m.id === installedName || installedName.startsWith(`${m.id}:`)),
       );
       if (!alreadyInCatalog) {
-        catalog.unshift({
+        localCatalog.unshift({
           id: installedName,
           name: `${installedName} (Local)`,
           provider: "ollama",
@@ -69,6 +80,7 @@ export async function listModels(req: Request, res: Response): Promise<void> {
           supportsTools: true,
           supportsStreaming: true,
           isLocal: true,
+          isFree: true,
           description:
             "Locally installed model detected from your Ollama daemon.",
           costPer1kInput: 0,
@@ -81,27 +93,27 @@ export async function listModels(req: Request, res: Response): Promise<void> {
     // Ignore if ollama daemon is offline
   }
 
+  // 2. OpenRouter dynamic models
+  let cloudModels: ModelInfo[] = [];
+  try {
+    cloudModels = await getOpenRouterCatalog(false, openRouterKey);
+  } catch (err: any) {
+    logger.warn({ error: err.message }, "Failed loading OpenRouter models");
+  }
+
+  const catalog: ModelInfo[] = [...localCatalog, ...cloudModels];
+
+  const isOpenRouterConfigured = Boolean(
+    openRouterKey && openRouterKey.trim().length > 0,
+  );
+
   const configuredProviders = {
     ollama: true,
-    openai: Boolean(userConfig?.apiKeys?.openai || process.env.OPENAI_API_KEY),
-    anthropic: Boolean(
-      userConfig?.apiKeys?.anthropic || process.env.ANTHROPIC_API_KEY,
-    ),
-    gemini: Boolean(userConfig?.apiKeys?.gemini || process.env.GEMINI_API_KEY),
-    groq: Boolean(userConfig?.apiKeys?.groq || process.env.GROQ_API_KEY),
+    openrouter: isOpenRouterConfigured,
   };
 
   const maskedKeys = {
-    openai: maskApiKey(
-      userConfig?.apiKeys?.openai || process.env.OPENAI_API_KEY,
-    ),
-    anthropic: maskApiKey(
-      userConfig?.apiKeys?.anthropic || process.env.ANTHROPIC_API_KEY,
-    ),
-    gemini: maskApiKey(
-      userConfig?.apiKeys?.gemini || process.env.GEMINI_API_KEY,
-    ),
-    groq: maskApiKey(userConfig?.apiKeys?.groq || process.env.GROQ_API_KEY),
+    openrouter: maskApiKey(openRouterKey),
   };
 
   res.status(200).json({
@@ -110,13 +122,13 @@ export async function listModels(req: Request, res: Response): Promise<void> {
       provider: activeProvider,
       model: activeModel,
     },
+    isOpenRouterConfigured,
     settings: {
       temperature: userConfig?.temperature ?? 0.1,
       maxTokens: userConfig?.maxTokens ?? 4096,
       customBaseUrls: userConfig?.customBaseUrls || {
         ollama: ollamaBaseUrl,
-        openai: "",
-        groq: "",
+        openrouter: "",
       },
       configuredProviders,
       maskedKeys,
@@ -124,8 +136,38 @@ export async function listModels(req: Request, res: Response): Promise<void> {
   });
 }
 
+export async function refreshModels(req: Request, res: Response): Promise<void> {
+  const userId = getUserId(req);
+  let openRouterKey = process.env.OPENROUTER_API_KEY || "";
+
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const userConfig = await ModelConfigModel.findOne({ userId }).lean();
+      if (userConfig?.apiKeys?.openrouter) {
+        openRouterKey = userConfig.apiKeys.openrouter;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    const refreshed = await refreshOpenRouterCatalog(openRouterKey);
+    res.status(200).json({
+      success: true,
+      message: "OpenRouter catalog refreshed successfully",
+      count: refreshed.length,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      error: "Failed refreshing OpenRouter catalog",
+      details: err.message,
+    });
+  }
+}
+
 const setActiveModelSchema = z.object({
-  provider: z.enum(["ollama", "openai", "anthropic", "gemini", "groq"]),
+  provider: z.enum(["ollama", "openrouter"]),
   model: z.string().min(1, "Model is required"),
 });
 
@@ -135,12 +177,10 @@ export async function setActiveModel(
 ): Promise<void> {
   const parseResult = setActiveModelSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res
-      .status(400)
-      .json({
-        error: "Validation failed",
-        details: parseResult.error.format(),
-      });
+    res.status(400).json({
+      error: "Validation failed",
+      details: parseResult.error.format(),
+    });
     return;
   }
 
@@ -178,17 +218,13 @@ export async function setActiveModel(
 const updateConfigSchema = z.object({
   apiKeys: z
     .object({
-      openai: z.string().optional(),
-      anthropic: z.string().optional(),
-      gemini: z.string().optional(),
-      groq: z.string().optional(),
+      openrouter: z.string().optional(),
     })
     .optional(),
   customBaseUrls: z
     .object({
       ollama: z.string().optional(),
-      openai: z.string().optional(),
-      groq: z.string().optional(),
+      openrouter: z.string().optional(),
     })
     .optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -201,12 +237,10 @@ export async function updateModelConfig(
 ): Promise<void> {
   const parseResult = updateConfigSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res
-      .status(400)
-      .json({
-        error: "Validation failed",
-        details: parseResult.error.format(),
-      });
+    res.status(400).json({
+      error: "Validation failed",
+      details: parseResult.error.format(),
+    });
     return;
   }
 
@@ -243,26 +277,22 @@ export async function updateModelConfig(
         { upsert: true, new: true },
       );
     } catch (err: any) {
-      res
-        .status(500)
-        .json({
-          error: "Failed saving model configuration",
-          details: err.message,
-        });
+      res.status(500).json({
+        error: "Failed saving model configuration",
+        details: err.message,
+      });
       return;
     }
   }
 
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "Model configuration updated successfully",
-    });
+  res.status(200).json({
+    success: true,
+    message: "Model configuration updated successfully",
+  });
 }
 
 const testConnectionSchema = z.object({
-  provider: z.enum(["ollama", "openai", "anthropic", "gemini", "groq"]),
+  provider: z.enum(["ollama", "openrouter"]),
   model: z.string().optional(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
@@ -274,12 +304,10 @@ export async function testModelConnection(
 ): Promise<void> {
   const parseResult = testConnectionSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res
-      .status(400)
-      .json({
-        error: "Validation failed",
-        details: parseResult.error.format(),
-      });
+    res.status(400).json({
+      error: "Validation failed",
+      details: parseResult.error.format(),
+    });
     return;
   }
 
@@ -360,13 +388,16 @@ export async function getModelMetrics(
       },
     ]);
 
+    const cachedCloud = await getOpenRouterCatalog(false);
+    const fullCatalog = [...DEFAULT_MODEL_CATALOG, ...cachedCloud];
+
     const metrics = rawMetrics.map((row) => {
       const provider = row._id.provider;
       const model = row._id.model;
       const promptTokens = row.totalPromptTokens || 0;
       const completionTokens = row.totalCompletionTokens || 0;
 
-      const catalogEntry = DEFAULT_MODEL_CATALOG.find(
+      const catalogEntry = fullCatalog.find(
         (m) => m.provider === provider && m.id === model,
       );
 

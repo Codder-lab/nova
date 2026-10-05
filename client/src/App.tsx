@@ -8,6 +8,8 @@ import { SchedulesView } from "./components/SchedulesView";
 import { RunsView } from "./components/RunsView";
 import { ResearchView } from "./components/ResearchView";
 import { SettingsView } from "./components/SettingsView";
+import { IntegrationsView } from "./components/IntegrationsView";
+import { AnalyticsView } from "./components/AnalyticsView";
 import { LoginPage } from "./components/LoginPage";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { ModelPicker } from "./components/ModelPicker";
@@ -57,6 +59,8 @@ export const App: React.FC = () => {
       schedules: "Automated Schedulers",
       runs: "Execution Runs",
       research: "Web & Browser",
+      integrations: "Integrations Hub",
+      analytics: "Analytics & Observability",
       settings: "System & Policy",
     };
     return map[tab];
@@ -72,6 +76,10 @@ export const App: React.FC = () => {
       runs: "Audit logs, execution traces, token usage, and latency metrics",
       research:
         "Automated web research, headless browser navigation, and content extraction",
+      integrations:
+        "Connect Nova to GitHub, Slack, Discord, Notion, Telegram, or build custom REST/Webhook integrations",
+      analytics:
+        "Deep execution traces, token consumption velocity, tool latency, and agent complexity",
       settings: "System diagnostics, security policies, and tool configuration",
     };
     return map[tab];
@@ -198,6 +206,8 @@ export const App: React.FC = () => {
               {activeTab === "schedules" && <SchedulesView />}
               {activeTab === "runs" && <RunsView />}
               {activeTab === "research" && <ResearchView />}
+              {activeTab === "integrations" && <IntegrationsView />}
+              {activeTab === "analytics" && <AnalyticsView />}
               {activeTab === "settings" && <SettingsView />}
             </div>
           )}
