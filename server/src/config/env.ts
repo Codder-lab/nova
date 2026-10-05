@@ -21,11 +21,13 @@ const envSchema = z.object({
     .min(16, "JWT_SECRET must be at least 16 characters")
     .default("supersecret_nova_jwt_dev_key_at_least_32_chars!"),
   JWT_EXPIRES_IN: z.string().default("7d"),
+  BETTER_AUTH_SECRET: z.string().optional(),
 
   // LLM Provider
   LLM_PROVIDER: z
-    .enum(["ollama", "openai", "anthropic", "gemini"])
+    .enum(["ollama", "openrouter"])
     .default("ollama"),
+  OPENROUTER_API_KEY: z.string().optional(),
   OLLAMA_BASE_URL: z.string().url().default("http://localhost:11434"),
   OLLAMA_MODEL: z.string().default("qwen2.5:7b"),
 

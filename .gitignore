@@ -36,6 +36,7 @@ coverage/
 tmp/
 temp/
 .turbo/
+*whatsapp_auth*
 
 # OS Generated Files
 .DS_Store

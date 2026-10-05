@@ -14,6 +14,7 @@ import { LLMRequest, LLMResponse, LLMChunk } from '@nova/shared';
 
 class MockLLM implements LLMProvider {
   public name = 'mock-llm';
+  public model = 'mock-model';
   public responses: LLMResponse[] = [];
 
   constructor(responses: LLMResponse[] = []) {

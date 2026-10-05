@@ -54,6 +54,11 @@ export interface AgentRun {
   finalResponse?: string;
   error?: string;
   pendingApproval?: PendingApprovalAction;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
   startedAt: Date;
   completedAt?: Date;
   metadata?: Record<string, unknown>;
@@ -66,6 +71,8 @@ export interface AgentInput {
   runId?: string;
   maxSteps?: number;
   timeoutMs?: number;
+  provider?: string;
+  model?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -77,6 +84,11 @@ export interface AgentResult {
   steps: AgentStep[];
   toolCallsCount: number;
   durationMs: number;
+  provider?: string;
+  model?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
   error?: string;
   pendingApproval?: PendingApprovalAction;
 }

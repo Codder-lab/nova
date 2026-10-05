@@ -9,6 +9,11 @@ import taskRoutes from "./routes/task.routes";
 import reminderRoutes from "./routes/reminder.routes";
 import memoryRoutes from "./routes/memory.routes";
 import scheduleRoutes from "./routes/schedule.routes";
+import conversationRoutes from "./routes/conversation.routes";
+import { modelRouter } from "./routes/model.routes";
+import integrationRoutes from "./routes/integration.routes";
+import whatsappRoutes from "./routes/whatsapp.routes";
+import analyticsRoutes from "./routes/analytics.routes";
 
 export function createApp(): express.Application {
   const app = express();
@@ -54,6 +59,12 @@ export function createApp(): express.Application {
   app.use("/api/reminders", reminderRoutes);
   app.use("/api/memories", memoryRoutes);
   app.use("/api/schedules", scheduleRoutes);
+  app.use("/api/conversations", conversationRoutes);
+  app.use("/api/sessions", conversationRoutes);
+  app.use("/api/models", modelRouter);
+  app.use("/api/integrations", integrationRoutes);
+  app.use("/api/whatsapp", whatsappRoutes);
+  app.use("/api/analytics", analyticsRoutes);
 
   // 404 Handler
   app.use((_req: Request, res: Response) => {

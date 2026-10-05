@@ -20,12 +20,10 @@ const loginSchema = z.object({
 export async function register(req: Request, res: Response): Promise<void> {
   const parseResult = registerSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res
-      .status(400)
-      .json({
-        error: "Validation failed",
-        details: parseResult.error.format(),
-      });
+    res.status(400).json({
+      error: "Validation failed",
+      details: parseResult.error.format(),
+    });
     return;
   }
 
@@ -75,12 +73,10 @@ export async function register(req: Request, res: Response): Promise<void> {
 export async function login(req: Request, res: Response): Promise<void> {
   const parseResult = loginSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res
-      .status(400)
-      .json({
-        error: "Validation failed",
-        details: parseResult.error.format(),
-      });
+    res.status(400).json({
+      error: "Validation failed",
+      details: parseResult.error.format(),
+    });
     return;
   }
 

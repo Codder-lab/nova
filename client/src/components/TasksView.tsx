@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   CheckSquare,
   Plus,
@@ -12,52 +12,55 @@ import {
   ListTodo,
   TrendingUp,
   AlertTriangle,
-  Sparkles,
-} from 'lucide-react';
-import { api } from '../services/api';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+} from "lucide-react";
+import { api } from "../services/api";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export const TasksView: React.FC = () => {
   const [tasks, setTasks] = useState<any[]>([]);
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const [newTitle, setNewTitle] = useState('');
-  const [newDescription, setNewDescription] = useState('');
-  const [newPriority, setNewPriority] = useState('medium');
-  const [newDueDate, setNewDueDate] = useState('');
-  const [newTags, setNewTags] = useState('');
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newPriority, setNewPriority] = useState("medium");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [newTags, setNewTags] = useState("");
 
   const loadTasks = async () => {
     setLoading(true);
     try {
-      const res = await api.listTasks('all');
+      const res = await api.listTasks("all");
       if (res.tasks) setTasks(res.tasks);
     } catch (err: any) {
-      console.error('Failed loading tasks:', err);
+      console.error("Failed loading tasks:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadTasks(); }, []);
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
   const handleToggleComplete = async (task: any) => {
-    const nextStatus = task.status === 'completed' ? 'todo' : 'completed';
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
+    const nextStatus = task.status === "completed" ? "todo" : "completed";
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)),
+    );
     try {
       await api.updateTask(task.id, { status: nextStatus });
     } catch {
@@ -78,7 +81,10 @@ export const TasksView: React.FC = () => {
     e.preventDefault();
     if (!newTitle.trim()) return;
     try {
-      const tags = newTags.split(',').map((t) => t.trim()).filter(Boolean);
+      const tags = newTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
       const res = await api.createTask({
         title: newTitle.trim(),
         description: newDescription.trim() || undefined,
@@ -89,7 +95,10 @@ export const TasksView: React.FC = () => {
       if (res.task) {
         setTasks((prev) => [res.task, ...prev]);
         setShowCreateModal(false);
-        setNewTitle(''); setNewDescription(''); setNewDueDate(''); setNewTags('');
+        setNewTitle("");
+        setNewDescription("");
+        setNewDueDate("");
+        setNewTags("");
       }
     } catch (err: any) {
       alert(`Failed to create task: ${err.message}`);
@@ -98,98 +107,109 @@ export const TasksView: React.FC = () => {
 
   const stats = {
     total: tasks.length,
-    completed: tasks.filter((t) => t.status === 'completed').length,
-    inProgress: tasks.filter((t) => t.status === 'in_progress').length,
-    urgent: tasks.filter((t) => t.priority === 'urgent').length,
+    completed: tasks.filter((t) => t.status === "completed").length,
+    inProgress: tasks.filter((t) => t.status === "in_progress").length,
+    urgent: tasks.filter((t) => t.priority === "urgent").length,
   };
 
   const filteredTasks = tasks.filter((t) => {
-    const matchesFilter = filter === 'all' || t.status === filter;
+    const matchesFilter = filter === "all" || t.status === filter;
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
   const getPriorityVariant = (p: string) => {
-    const map: Record<string, any> = { urgent: 'destructive', high: 'warning', medium: 'default', low: 'secondary' };
-    return map[p] || 'outline';
+    const map: Record<string, any> = {
+      urgent: "destructive",
+      high: "warning",
+      medium: "default",
+      low: "secondary",
+    };
+    return map[p] || "outline";
   };
 
   const getStatusVariant = (s: string) => {
-    const map: Record<string, any> = { completed: 'success', in_progress: 'cyan', cancelled: 'destructive' };
-    return map[s] || 'secondary';
+    const map: Record<string, any> = {
+      completed: "success",
+      in_progress: "info",
+      cancelled: "destructive",
+    };
+    return map[s] || "secondary";
   };
 
   return (
-    <div className="space-y-6 fade-in-up">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-indigo-500/15 text-indigo-400">
-              <CheckSquare className="w-4 h-4" />
-            </div>
-            <h2 className="text-xl font-black tracking-tight text-white font-['Outfit',sans-serif]">
-              Tasks Board
+            <CheckSquare className="w-5 h-5 text-foreground" />
+            <h2 className="text-lg font-semibold text-foreground tracking-tight">
+              Tasks & Goals
             </h2>
           </div>
-          <p className="text-sm text-slate-400">
-            Organize tasks manually or command Nova to create, assign, and complete them autonomously.
+          <p className="text-xs text-muted-foreground">
+            Manage goals, organize priorities, and track autonomous task
+            progress.
           </p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} variant="glow" className="shrink-0">
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          size="sm"
+          className="shrink-0 h-9"
+        >
           <Plus className="w-4 h-4 mr-1.5" /> New Task
         </Button>
       </div>
 
-      {/* Stats Row */}
+      {/* Stats Cards */}
       {!loading && tasks.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Total Tasks', value: stats.total, icon: ListTodo, color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/20', hover: 'stat-card-indigo' },
-            { label: 'Completed', value: stats.completed, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', hover: 'stat-card-emerald' },
-            { label: 'In Progress', value: stats.inProgress, icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20', hover: 'stat-card-cyan' },
-            { label: 'Urgent', value: stats.urgent, icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', hover: 'stat-card-amber' },
+            { label: "Total Tasks", value: stats.total, icon: ListTodo },
+            { label: "Completed", value: stats.completed, icon: CheckCircle2 },
+            { label: "In Progress", value: stats.inProgress, icon: TrendingUp },
+            { label: "Urgent", value: stats.urgent, icon: AlertTriangle },
           ].map((stat) => {
             const Icon = stat.icon;
             return (
-              <div
+              <Card
                 key={stat.label}
-                className={cn(
-                  'flex items-center gap-3 p-4 rounded-2xl border transition-all duration-200',
-                  stat.bg, stat.hover
-                )}
+                className="p-4 bg-card border-border shadow-xs"
               >
-                <div className={cn('p-2 rounded-xl bg-white/5', stat.color)}>
-                  <Icon className="w-4 h-4" />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {stat.label}
+                  </span>
+                  <Icon className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <div>
-                  <div className="text-xl font-black text-white font-['Outfit',sans-serif]">{stat.value}</div>
-                  <div className="text-[11px] text-slate-400 font-medium">{stat.label}</div>
+                <div className="mt-2 text-2xl font-bold text-foreground">
+                  {stat.value}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
       )}
 
-      {/* Filter Chips & Search */}
+      {/* Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           {[
-            { key: 'all', label: 'All' },
-            { key: 'todo', label: 'Todo' },
-            { key: 'in_progress', label: 'In Progress' },
-            { key: 'completed', label: 'Completed' },
-            { key: 'cancelled', label: 'Cancelled' },
+            { key: "all", label: "All" },
+            { key: "todo", label: "Todo" },
+            { key: "in_progress", label: "In Progress" },
+            { key: "completed", label: "Completed" },
+            { key: "cancelled", label: "Cancelled" },
           ].map((s) => (
             <button
               key={s.key}
               onClick={() => setFilter(s.key)}
               className={cn(
-                'shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer',
+                "shrink-0 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors cursor-pointer",
                 filter === s.key
-                  ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
-                  : 'bg-white/[0.03] border-white/[0.07] text-slate-400 hover:border-white/15 hover:text-slate-200'
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground",
               )}
             >
               {s.label}
@@ -197,11 +217,11 @@ export const TasksView: React.FC = () => {
           ))}
         </div>
 
-        <div className="relative w-full sm:w-56">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+        <div className="relative w-full sm:w-60">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
             type="text"
-            className="pl-9 h-9 text-xs bg-slate-900/60"
+            className="pl-8 h-8 text-xs"
             placeholder="Search tasks..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -211,67 +231,74 @@ export const TasksView: React.FC = () => {
 
       {/* Task List */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <div className="relative mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
-            </div>
-          </div>
-          <p className="text-sm font-medium">Loading from MongoDB Atlas...</p>
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin mb-2" />
+          <p className="text-xs">Loading tasks...</p>
         </div>
       ) : filteredTasks.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center py-16 text-center border-dashed bg-transparent">
-          <div className="w-14 h-14 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center justify-center mb-4">
-            <CheckSquare className="w-7 h-7 text-slate-600" />
+        <Card className="flex flex-col items-center justify-center py-14 text-center border-dashed bg-card/50">
+          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center mb-3">
+            <CheckSquare className="w-5 h-5 text-muted-foreground" />
           </div>
-          <h3 className="font-bold text-slate-300 mb-1.5">No tasks found</h3>
-          <p className="text-xs text-slate-500 max-w-xs mb-5">
-            Create a task with the button above, or tell Nova in chat: <em>"Create a high priority task titled..."</em>
+          <h3 className="text-sm font-semibold text-foreground mb-1">
+            No tasks found
+          </h3>
+          <p className="text-xs text-muted-foreground max-w-xs mb-4">
+            Create your first task or ask Nova in chat to create one for you.
           </p>
-          <Button variant="outline" size="sm" onClick={() => setShowCreateModal(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateModal(true)}
+          >
             <Plus className="w-3.5 h-3.5 mr-1" /> Create Task
           </Button>
         </Card>
       ) : (
         <div className="space-y-2">
-          {filteredTasks.map((task, idx) => (
+          {filteredTasks.map((task) => (
             <div
               key={task.id}
-              className="group flex items-center justify-between gap-4 p-4 rounded-2xl border border-white/[0.06] bg-slate-900/40 hover:bg-slate-900/70 hover:border-indigo-500/20 transition-all duration-200 fade-in-up"
-              style={{ animationDelay: `${idx * 0.04}s` }}
+              className="group flex items-center justify-between gap-3 p-3.5 rounded-md border border-border bg-card hover:bg-muted/30 transition-colors"
             >
               {/* Left: Checkbox + Info */}
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={() => handleToggleComplete(task)}
-                  className="shrink-0 transition-all hover:scale-110 cursor-pointer"
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  {task.status === 'completed' ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  {task.status === "completed" ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   ) : (
-                    <Circle className="w-5 h-5 text-slate-600 hover:text-indigo-400 transition-colors" />
+                    <Circle className="w-4 h-4" />
                   )}
                 </button>
 
                 <div className="min-w-0">
-                  <div className={cn(
-                    'text-sm font-semibold text-slate-100 truncate',
-                    task.status === 'completed' && 'line-through text-slate-500'
-                  )}>
+                  <div
+                    className={cn(
+                      "text-xs sm:text-sm font-medium text-foreground truncate",
+                      task.status === "completed" &&
+                        "line-through text-muted-foreground",
+                    )}
+                  >
                     {task.title}
                   </div>
                   {task.description && (
-                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{task.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                      {task.description}
+                    </p>
                   )}
-                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-500">
+                  <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
                     {task.dueDate && (
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {new Date(task.dueDate).toLocaleDateString()}
+                        <Calendar className="w-3 h-3" />{" "}
+                        {new Date(task.dueDate).toLocaleDateString()}
                       </span>
                     )}
                     {task.tags?.length > 0 && (
-                      <span className="flex items-center gap-1 text-indigo-400/80 font-medium">
-                        <Tag className="w-3 h-3" /> {task.tags.join(', ')}
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> {task.tags.join(", ")}
                       </span>
                     )}
                   </div>
@@ -280,11 +307,21 @@ export const TasksView: React.FC = () => {
 
               {/* Right: Badges + Delete */}
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={getPriorityVariant(task.priority)}>{task.priority}</Badge>
-                <Badge variant={getStatusVariant(task.status)}>{task.status?.replace('_', ' ')}</Badge>
+                <Badge
+                  variant={getPriorityVariant(task.priority)}
+                  className="text-[10px] px-1.5 py-0"
+                >
+                  {task.priority}
+                </Badge>
+                <Badge
+                  variant={getStatusVariant(task.status)}
+                  className="text-[10px] px-1.5 py-0"
+                >
+                  {task.status?.replace("_", " ")}
+                </Badge>
                 <button
                   onClick={() => handleDelete(task.id)}
-                  className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
                   title="Delete task"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -295,29 +332,23 @@ export const TasksView: React.FC = () => {
         </div>
       )}
 
-      {/* Nova Hint Banner */}
-      {!loading && tasks.length > 0 && (
-        <div className="flex items-center gap-3 p-3.5 rounded-xl border border-indigo-500/15 bg-indigo-500/5 text-xs text-indigo-300/80">
-          <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
-          <span>
-            Tip: Ask Nova in chat — <em>"Mark all completed tasks as cancelled"</em> or <em>"Create tasks from this meeting notes list..."</em>
-          </span>
-        </div>
-      )}
-
       {/* Create Task Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogHeader>
-          <DialogTitle onClose={() => setShowCreateModal(false)}>Create New Task</DialogTitle>
+          <DialogTitle onClose={() => setShowCreateModal(false)}>
+            Create Task
+          </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleCreate} className="space-y-4 pt-3">
+        <form onSubmit={handleCreate} className="space-y-3.5 pt-2">
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">Task Title *</label>
+            <label className="text-xs font-medium text-foreground block mb-1">
+              Title *
+            </label>
             <Input
               type="text"
               required
-              placeholder="e.g. Prepare Financial Audit Report"
+              placeholder="e.g. Complete quarterly security audit"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               autoFocus
@@ -325,10 +356,12 @@ export const TasksView: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">Description (optional)</label>
+            <label className="text-xs font-medium text-foreground block mb-1">
+              Description
+            </label>
             <Textarea
               rows={2}
-              placeholder="Context, links, or meeting notes..."
+              placeholder="Task details and context..."
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
             />
@@ -336,9 +369,11 @@ export const TasksView: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1.5">Priority</label>
+              <label className="text-xs font-medium text-foreground block mb-1">
+                Priority
+              </label>
               <select
-                className="w-full h-11 rounded-xl border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 shadow-sm focus:outline-none focus:border-indigo-500"
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
                 value={newPriority}
                 onChange={(e) => setNewPriority(e.target.value)}
               >
@@ -350,19 +385,41 @@ export const TasksView: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1.5">Due Date</label>
-              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
+              <label className="text-xs font-medium text-foreground block mb-1">
+                Due Date
+              </label>
+              <Input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+              />
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">Tags (comma separated)</label>
-            <Input type="text" placeholder="audit, finance, quarterly" value={newTags} onChange={(e) => setNewTags(e.target.value)} />
+            <label className="text-xs font-medium text-foreground block mb-1">
+              Tags (comma separated)
+            </label>
+            <Input
+              type="text"
+              placeholder="engineering, security"
+              value={newTags}
+              onChange={(e) => setNewTags(e.target.value)}
+            />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button type="submit" variant="glow">Create Task</Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCreateModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" size="sm">
+              Create Task
+            </Button>
           </DialogFooter>
         </form>
       </Dialog>

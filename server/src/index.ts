@@ -7,6 +7,7 @@ import { logger } from "./utils/logger";
 import http from "http";
 import { socketService } from "./services/socket.service";
 import { schedulerService } from "./services/scheduler.service";
+import { whatsappService } from "./services/whatsapp.service";
 
 async function bootstrap() {
   try {
@@ -16,6 +17,11 @@ async function bootstrap() {
 
     // 2. Connect to Database (with memory-server fallback in dev)
     await connectDB();
+
+    // Auto-restore WhatsApp session if saved
+    whatsappService.autoRestoreIfSessionExists().catch((err) => {
+      logger.warn({ err: err.message }, "WhatsApp auto-restore deferred");
+    });
 
     // 3. Start Express & Socket.IO server
     const app = createApp();

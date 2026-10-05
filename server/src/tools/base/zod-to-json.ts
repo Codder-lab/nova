@@ -72,6 +72,7 @@ function extractField(field: z.ZodTypeAny): {
   const typeName = current._def.typeName;
   let type = "string";
   let enumValues: string[] | undefined;
+  let items: ToolParameterProperty | Record<string, unknown> | undefined;
 
   switch (typeName) {
     case "ZodString":
@@ -85,6 +86,12 @@ function extractField(field: z.ZodTypeAny): {
       break;
     case "ZodArray":
       type = "array";
+      if (current._def.type) {
+        const itemParsed = extractField(current._def.type);
+        items = itemParsed.property;
+      } else {
+        items = { type: "string" };
+      }
       break;
     case "ZodEnum":
       type = "string";
@@ -102,6 +109,7 @@ function extractField(field: z.ZodTypeAny): {
       type,
       description,
       enum: enumValues,
+      items,
     },
     isRequired,
   };

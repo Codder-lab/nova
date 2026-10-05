@@ -4,6 +4,8 @@ export interface IConversation extends Document {
   id: string;
   userId: string;
   title: string;
+  lastMessage?: string;
+  messageCount?: number;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +18,13 @@ export interface IMessage extends Document {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
   toolCalls?: unknown[];
+  steps?: unknown[];
+  runId?: string;
+  durationMs?: number;
+  toolCallsCount?: number;
+  status?: string;
+  pendingApproval?: unknown;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
 }
 
@@ -26,8 +35,10 @@ const ConversationSchema = new Schema<IConversation>(
       type: String,
       required: true,
       trim: true,
-      default: "New Conversation",
+      default: "New Chat",
     },
+    lastMessage: { type: String },
+    messageCount: { type: Number, default: 0 },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },
   {
@@ -54,6 +65,13 @@ const MessageSchema = new Schema<IMessage>(
     },
     content: { type: String, default: "" },
     toolCalls: { type: [Schema.Types.Mixed], default: [] },
+    steps: { type: [Schema.Types.Mixed], default: [] },
+    runId: { type: String },
+    durationMs: { type: Number },
+    toolCallsCount: { type: Number },
+    status: { type: String },
+    pendingApproval: { type: Schema.Types.Mixed },
+    metadata: { type: Schema.Types.Mixed, default: {} },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
