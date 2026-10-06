@@ -42,7 +42,7 @@ export function createApp(): express.Application {
   app.use(express.urlencoded({ extended: true }));
 
   // Health check
-  app.get("/health", (_req: Request, res: Response) => {
+  const healthHandler = (_req: Request, res: Response) => {
     res.status(200).json({
       status: "ok",
       service: "nova-assistant-api",
@@ -50,7 +50,9 @@ export function createApp(): express.Application {
       llmProvider: env.LLM_PROVIDER,
       model: env.OLLAMA_MODEL,
     });
-  });
+  };
+  app.get("/health", healthHandler);
+  app.get("/api/health", healthHandler);
 
   // API Routes
   app.use("/api/auth", authRouter);

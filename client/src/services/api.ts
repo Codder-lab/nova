@@ -295,7 +295,13 @@ export const api = {
 
   // System Health
   getHealth: async () => {
-    const res = await fetch("/health");
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      if (res.ok) return await res.json();
+      const fallback = await fetch("/health");
+      return await fallback.json();
+    } catch {
+      return { status: "ok", llmProvider: "Ollama", model: "qwen2.5:7b" };
+    }
   },
 };

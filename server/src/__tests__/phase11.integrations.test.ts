@@ -153,6 +153,8 @@ describe("Phase 11: External Integrations & Connectors Hub", () => {
       const ids = connectors.map((c) => c.id);
 
       expect(ids).toContain("github");
+      expect(ids).toContain("gmail");
+      expect(ids).toContain("google_calendar");
       expect(ids).toContain("slack");
       expect(ids).toContain("discord");
       expect(ids).toContain("notion");

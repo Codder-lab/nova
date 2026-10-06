@@ -82,3 +82,39 @@ export async function deleteIntegration(connectorId: string): Promise<boolean> {
   }
   return data.deleted || false;
 }
+
+export async function fetchGoogleAuthConfig(): Promise<{
+  configured: boolean;
+  clientId: string | null;
+  redirectUri: string;
+}> {
+  const res = await fetch(`${API_BASE}/google/config`, { credentials: "include" });
+  const data = await res.json();
+  return {
+    configured: data.configured || false,
+    clientId: data.clientId || null,
+    redirectUri: data.redirectUri || "",
+  };
+}
+
+export async function fetchGoogleAuthUrl(
+  connectorId: string,
+  customCredentials?: { clientId?: string; clientSecret?: string }
+): Promise<string> {
+  const params = new URLSearchParams({ connectorId });
+  if (customCredentials?.clientId) {
+    params.set("clientId", customCredentials.clientId);
+  }
+  if (customCredentials?.clientSecret) {
+    params.set("clientSecret", customCredentials.clientSecret);
+  }
+
+  const res = await fetch(`${API_BASE}/google/auth-url?${params.toString()}`, {
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to get Google authorization URL");
+  }
+  return data.url;
+}

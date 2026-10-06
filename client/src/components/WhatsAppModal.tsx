@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Phone,
   QrCode,
   CheckCircle2,
   AlertCircle,
@@ -23,6 +22,7 @@ import {
   Smartphone,
   ShieldCheck,
 } from "lucide-react";
+import { WhatsAppLogo } from "@/components/icons/BrandLogos";
 import {
   fetchWhatsAppStatus,
   connectWhatsApp,
@@ -163,8 +163,8 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
       {/* Header */}
       <DialogHeader>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
-            <Phone className="w-5 h-5" />
+          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            <WhatsAppLogo className="w-10 h-10" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

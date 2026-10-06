@@ -56,11 +56,9 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
             "anonymous",
           ].includes(conv.userId);
           if (!isOwner && !isPublicGuestSession) {
-            res
-              .status(403)
-              .json({
-                error: "Access denied: Conversation belongs to another user",
-              });
+            res.status(403).json({
+              error: "Access denied: Conversation belongs to another user",
+            });
             return;
           }
 
@@ -202,11 +200,19 @@ export function enqueueJob(req: Request, res: Response): void {
 }
 
 export function listTools(_req: Request, res: Response): void {
-  const tools = globalToolRegistry.getAll().map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    riskLevel: tool.riskLevel,
-  }));
+  const toolDefs = globalToolRegistry.toToolDefinitions();
+  const tools = globalToolRegistry.getAll().map((tool) => {
+    const def = toolDefs.find((d) => d.name === tool.name);
+    return {
+      name: tool.name,
+      description: tool.description,
+      riskLevel: tool.riskLevel,
+      requiresApproval: ["HIGH", "CRITICAL"].includes(
+        tool.riskLevel?.toUpperCase(),
+      ),
+      parameters: def?.parameters,
+    };
+  });
 
   res.status(200).json({ tools });
 }

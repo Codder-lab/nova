@@ -29,16 +29,25 @@ import {
   MessagesSquare,
   MessageSquare,
   RotateCcw,
+  Mic,
+  Headphones,
+  Mail,
 } from "lucide-react";
 import { api } from "../services/api";
 import { socketClient } from "../services/socket";
-import type { AgentStep } from "@nova/shared";
+import type { AgentStep, VoiceConfig } from "@nova/shared";
+import { DEFAULT_VOICE_CONFIG } from "@nova/shared";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ModelPicker } from "./ModelPicker";
+import { useTextToSpeech } from "../hooks/useTextToSpeech";
+import { useVoiceRecognition } from "../hooks/useVoiceRecognition";
+import { VoiceWaveform } from "./VoiceWaveform";
+import { VoiceSettingsModal } from "./VoiceSettingsModal";
+import { MessageVoiceButton } from "./MessageVoiceButton";
 import { cn } from "@/lib/utils";
 
 export interface ChatSessionItem {
@@ -185,6 +194,57 @@ function getHumanFriendlyStep(step: AgentStep): {
       return {
         title: `Registering background automation: "${args.prompt || ""}"`,
         detail: `Cron recurrence: ${args.schedule || ""}`,
+        icon: Calendar,
+      };
+    }
+    if (name === "gmail_search_emails") {
+      return {
+        title: `Searching Gmail: "${args.query || ""}"`,
+        icon: Mail,
+      };
+    }
+    if (name === "gmail_read_email") {
+      return {
+        title: `Reading email message`,
+        detail: args.messageId ? `ID: ${args.messageId}` : undefined,
+        icon: Mail,
+      };
+    }
+    if (name === "gmail_send_email") {
+      return {
+        title: `Sending email to ${args.to || ""}: "${args.subject || ""}"`,
+        icon: Mail,
+      };
+    }
+    if (name === "gmail_create_draft") {
+      return {
+        title: `Creating email draft to ${args.to || ""}: "${args.subject || ""}"`,
+        icon: Mail,
+      };
+    }
+    if (name === "google_calendar_list_events") {
+      return {
+        title: "Checking Google Calendar schedule",
+        icon: Calendar,
+      };
+    }
+    if (name === "google_calendar_search_events") {
+      return {
+        title: `Searching calendar for: "${args.query || ""}"`,
+        icon: Calendar,
+      };
+    }
+    if (name === "google_calendar_create_event") {
+      return {
+        title: `Scheduling event: "${args.summary || ""}"`,
+        detail: args.startDateTime ? `At: ${args.startDateTime}` : undefined,
+        icon: Calendar,
+      };
+    }
+    if (name === "google_calendar_delete_event") {
+      return {
+        title: "Deleting calendar event",
+        detail: args.eventId ? `Event ID: ${args.eventId}` : undefined,
         icon: Calendar,
       };
     }
@@ -500,6 +560,139 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState("");
   const [isSessionLoading, setIsSessionLoading] = useState(false);
+
+  // Voice Interface state & preferences
+  const [voiceConfig, setVoiceConfig] = useState<VoiceConfig>(() => {
+    if (typeof window === "undefined") return DEFAULT_VOICE_CONFIG;
+    try {
+      const saved = localStorage.getItem("nova_voice_config");
+      if (saved) return { ...DEFAULT_VOICE_CONFIG, ...JSON.parse(saved) };
+    } catch {
+      // Ignore
+    }
+    return DEFAULT_VOICE_CONFIG;
+  });
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
+  const handleVoiceConfigChange = (newConfig: VoiceConfig) => {
+    setVoiceConfig(newConfig);
+    try {
+      localStorage.setItem("nova_voice_config", JSON.stringify(newConfig));
+    } catch {
+      // Ignore
+    }
+  };
+
+  // Text-To-Speech
+  const tts = useTextToSpeech({
+    config: voiceConfig,
+  });
+
+  // Speech-To-Text Recognition
+  const {
+    isSupported: sttSupported,
+    isListening,
+    audioLevel,
+    startListening,
+    stopListening,
+    toggleListening,
+  } = useVoiceRecognition({
+    config: voiceConfig,
+    onTranscriptChange: (text) => {
+      if (text) {
+        setInputGoal(text);
+      }
+    },
+    onFinalTranscript: (finalText) => {
+      if (finalText.trim()) {
+        setInputGoal(finalText.trim());
+        if (voiceConfig.handsFree) {
+          // Auto-send in continuous hands-free conversational loop
+          setTimeout(() => {
+            handleSend(finalText.trim());
+          }, 350);
+        }
+      }
+    },
+    onError: (err) => {
+      console.warn("STT warning:", err);
+    },
+  });
+
+  // Keep speakingMessageId in sync if speech finishes
+  useEffect(() => {
+    if (!tts.isSpeaking) {
+      setSpeakingMessageId(null);
+    }
+  }, [tts.isSpeaking]);
+
+  // Spacebar Push-to-Talk (PTT)
+  useEffect(() => {
+    if (!voiceConfig.pushToTalk || !sttSupported) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        const target = e.target as HTMLElement;
+        const isInputField =
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable;
+        if (!isInputField && !isListening) {
+          e.preventDefault();
+          if (tts.isSpeaking) {
+            tts.stop();
+            setSpeakingMessageId(null);
+          }
+          startListening();
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        const target = e.target as HTMLElement;
+        const isInputField =
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable;
+        if (!isInputField && isListening) {
+          e.preventDefault();
+          stopListening();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [voiceConfig.pushToTalk, sttSupported, isListening, tts.isSpeaking, startListening, stopListening, tts]);
+
+  const toggleMessageSpeech = (msgId: string, content: string) => {
+    if (speakingMessageId === msgId) {
+      tts.stop();
+      setSpeakingMessageId(null);
+    } else {
+      if (isListening) {
+        stopListening();
+      }
+      setSpeakingMessageId(msgId);
+      tts.speak(content, () => {
+        setSpeakingMessageId(null);
+      });
+    }
+  };
+
+  const handleToggleListening = () => {
+    if (tts.isSpeaking) {
+      tts.stop();
+      setSpeakingMessageId(null);
+    }
+    toggleListening();
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -884,10 +1077,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleStreamComplete = (msgId: string) => {
+  const handleStreamComplete = (msgId: string, fullText?: string) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === msgId ? { ...m, isStreaming: false } : m)),
     );
+
+    if (voiceConfig.autoSpeak && fullText) {
+      setSpeakingMessageId(msgId);
+      tts.speak(fullText, () => {
+        setSpeakingMessageId(null);
+        if (voiceConfig.handsFree && sttSupported) {
+          startListening();
+        }
+      });
+    }
   };
 
   const isEmpty = messages.length === 0;
@@ -1078,6 +1281,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="flex items-center gap-2">
             <ModelPicker compact />
 
+            {/* Voice & Hands-Free Settings Trigger */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsVoiceSettingsOpen(true)}
+              className={cn(
+                "h-7 px-2 text-xs transition-colors cursor-pointer",
+                voiceConfig.handsFree
+                  ? "text-amber-500 font-medium bg-amber-500/10 hover:bg-amber-500/20"
+                  : voiceConfig.autoSpeak
+                  ? "text-primary bg-primary/10 hover:bg-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+              title="Voice & Hands-Free Settings"
+            >
+              <Headphones className="w-3.5 h-3.5 mr-1" />
+              <span className="hidden sm:inline">
+                {voiceConfig.handsFree
+                  ? "Hands-Free"
+                  : voiceConfig.autoSpeak
+                  ? "Auto-Read"
+                  : "Voice"}
+              </span>
+            </Button>
+
             {messages.length > 0 && (
               <Button
                 variant="ghost"
@@ -1255,7 +1483,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <StreamedMarkdownResponse
                         text={msg.content}
                         isStreaming={msg.isStreaming}
-                        onStreamComplete={() => handleStreamComplete(msg.id)}
+                        onStreamComplete={() =>
+                          handleStreamComplete(msg.id, msg.content)
+                        }
                         onScroll={scrollToBottom}
                       />
                     ) : null}
@@ -1279,25 +1509,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             )}
                         </div>
 
-                        <button
-                          onClick={() => copyToClipboard(msg.content, msg.id)}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded hover:bg-muted"
-                          title="Copy response"
-                        >
-                          {copiedId === msg.id ? (
-                            <>
-                              <CheckCheck className="w-3 h-3 text-emerald-500" />
-                              <span className="text-[10px] text-emerald-500 font-medium">
-                                Copied
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span className="text-[10px]">Copy</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <MessageVoiceButton
+                            isSpeakingThis={speakingMessageId === msg.id}
+                            onToggle={() =>
+                              toggleMessageSpeech(msg.id, msg.content)
+                            }
+                            disabled={loading}
+                          />
+
+                          <button
+                            onClick={() => copyToClipboard(msg.content, msg.id)}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded hover:bg-muted"
+                            title="Copy response"
+                          >
+                            {copiedId === msg.id ? (
+                              <>
+                                <CheckCheck className="w-3 h-3 text-emerald-500" />
+                                <span className="text-[10px] text-emerald-500 font-medium">
+                                  Copied
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span className="text-[10px]">Copy</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1329,6 +1569,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
             )}
 
+            {/* Live Listening Banner if active */}
+            {isListening && (
+              <div className="mb-2 flex items-center justify-between px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 animate-in fade-in-0 duration-150">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                  <span className="font-medium">Listening...</span>
+                  <span className="text-muted-foreground hidden sm:inline text-[11px]">
+                    Speak your prompt clearly
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <VoiceWaveform
+                    isListening={true}
+                    isSpeaking={false}
+                    audioLevel={audioLevel}
+                    barCount={16}
+                    className="h-5"
+                  />
+                  {voiceConfig.pushToTalk && (
+                    <span className="text-[10px] font-mono bg-rose-500/20 px-1.5 py-0.5 rounded text-rose-400 hidden sm:inline">
+                      Space to talk
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1340,11 +1607,60 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 ref={inputRef}
                 type="text"
                 className="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm text-foreground placeholder:text-muted-foreground font-sans"
-                placeholder="Describe a goal or ask a question..."
+                placeholder={
+                  isListening
+                    ? "Listening... speak now..."
+                    : voiceConfig.pushToTalk
+                    ? "Describe a goal, ask a question, or hold Spacebar..."
+                    : "Describe a goal or ask a question..."
+                }
                 value={inputGoal}
                 onChange={(e) => setInputGoal(e.target.value)}
                 disabled={loading}
               />
+
+              {/* Real-time Voice Waveform when speaking (TTS) */}
+              {tts.isSpeaking && !isListening && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs hidden sm:flex">
+                  <VoiceWaveform
+                    isListening={false}
+                    isSpeaking={true}
+                    barCount={12}
+                    className="h-5"
+                  />
+                  <span className="text-[10px] font-medium">Speaking</span>
+                </div>
+              )}
+
+              {/* Microphone Button */}
+              {sttSupported && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleListening}
+                  disabled={loading}
+                  className={cn(
+                    "h-8 px-2.5 text-xs transition-colors cursor-pointer",
+                    isListening
+                      ? "bg-rose-500/20 text-rose-500 hover:bg-rose-500/30 ring-1 ring-rose-500/50"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                  )}
+                  title={
+                    isListening
+                      ? "Stop listening"
+                      : voiceConfig.pushToTalk
+                      ? "Click or Hold Spacebar to speak"
+                      : "Click to start voice dictation"
+                  }
+                >
+                  {isListening ? (
+                    <Mic className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                  ) : (
+                    <Mic className="w-3.5 h-3.5" />
+                  )}
+                </Button>
+              )}
 
               <Button
                 type="submit"
@@ -1368,6 +1684,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Voice Settings Modal */}
+      <VoiceSettingsModal
+        open={isVoiceSettingsOpen}
+        onOpenChange={setIsVoiceSettingsOpen}
+        config={voiceConfig}
+        onConfigChange={handleVoiceConfigChange}
+        voices={tts.voices}
+      />
     </div>
   );
 };

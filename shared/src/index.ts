@@ -7,3 +7,5 @@ export * from "./types/schedule.types";
 export * from "./types/session.types";
 export * from "./types/integration.types";
 export * from "./types/analytics.types";
+export * from "./types/voice.types";
+export * from "./utils/speech-sanitizer";

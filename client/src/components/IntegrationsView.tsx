@@ -23,14 +23,13 @@ import {
   Plug,
   ShieldCheck,
   Globe,
-  Radio,
-  BookOpen,
-  MessageSquare,
   Sparkles,
   Settings2,
-  Send,
-  Phone,
 } from "lucide-react";
+import {
+  BrandIcon,
+  getConnectorBadgeStyle,
+} from "@/components/icons/BrandLogos";
 
 export const IntegrationsView: React.FC = () => {
   const [connectors, setConnectors] = useState<ConnectorMeta[]>([]);
@@ -133,31 +132,6 @@ export const IntegrationsView: React.FC = () => {
   );
 
   const connectedCount = userIntegrations.filter((i) => i.status === "connected").length;
-
-  const getConnectorIcon = (iconName: string) => {
-    switch (iconName) {
-      case "Github":
-        return <Globe className="w-5 h-5 text-indigo-400" />;
-      case "MessageSquare":
-      case "Slack":
-        return <MessageSquare className="w-5 h-5 text-amber-400" />;
-      case "Radio":
-      case "Discord":
-        return <Radio className="w-5 h-5 text-purple-400" />;
-      case "BookOpen":
-      case "Notion":
-        return <BookOpen className="w-5 h-5 text-emerald-400" />;
-      case "Send":
-      case "Telegram":
-        return <Send className="w-5 h-5 text-sky-400" />;
-      case "Phone":
-      case "WhatsApp":
-      case "whatsapp":
-        return <Phone className="w-5 h-5 text-emerald-400" />;
-      default:
-        return <Globe className="w-5 h-5 text-cyan-400" />;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -283,6 +257,11 @@ export const IntegrationsView: React.FC = () => {
             const isError = userInt?.status === "error";
             const isTesting = testingMap[connector.id];
             const testResult = testResultMap[connector.id];
+            const badgeStyle = getConnectorBadgeStyle(
+              connector.id,
+              connector.name,
+              connector.icon
+            );
 
             return (
               <Card
@@ -293,8 +272,13 @@ export const IntegrationsView: React.FC = () => {
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-lg bg-secondary/80 border border-border flex items-center justify-center">
-                        {getConnectorIcon(connector.icon)}
+                      <div className="w-9 h-9 flex items-center justify-center shrink-0">
+                        <BrandIcon
+                          id={connector.id}
+                          name={connector.name}
+                          icon={connector.icon}
+                          className={badgeStyle.iconClass}
+                        />
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">

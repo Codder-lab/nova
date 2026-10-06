@@ -84,6 +84,80 @@ export class GitHubConnector implements BaseConnector {
       "User-Agent": "Nova-Assistant",
     };
 
+    // Helper to resolve owner and repo coordinates
+    let cachedAuthUser: string | null = null;
+    const getAuthUser = async (): Promise<string | null> => {
+      if (cachedAuthUser) return cachedAuthUser;
+      try {
+        const res = await fetch("https://api.github.com/user", { headers });
+        if (res.ok) {
+          const user = (await res.json()) as any;
+          if (user?.login) {
+            cachedAuthUser = user.login;
+            return cachedAuthUser;
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    };
+
+    const resolveCoordinates = async (
+      inputOwner?: string,
+      inputRepo?: string
+    ): Promise<{ owner: string; repo: string }> => {
+      let owner = (inputOwner || "").trim();
+      let repo = (inputRepo || "").trim();
+
+      // If repo includes "owner/repo", parse both
+      if (repo.includes("/")) {
+        const parts = repo.split("/");
+        owner = parts[0].trim();
+        repo = parts.slice(1).join("/").trim();
+      }
+
+      // If owner is omitted or equals repo name, fallback to authenticated user
+      if (!owner || owner.toLowerCase() === repo.toLowerCase()) {
+        const authUser = await getAuthUser();
+        if (authUser) {
+          owner = authUser;
+        }
+      }
+
+      return { owner, repo };
+    };
+
+    // Helper to fetch GitHub with automatic 404 fallback to authenticated user
+    const fetchGitHub = async (
+      endpointBuilder: (owner: string, repo: string) => string,
+      inputOwner?: string,
+      inputRepo?: string,
+      init?: RequestInit
+    ) => {
+      let coords = await resolveCoordinates(inputOwner, inputRepo);
+      let res = await fetch(endpointBuilder(coords.owner, coords.repo), {
+        headers,
+        ...init,
+      });
+
+      // If 404 and owner didn't match authenticated user, retry with auth user
+      if (res.status === 404) {
+        const authUser = await getAuthUser();
+        if (authUser && authUser.toLowerCase() !== coords.owner.toLowerCase()) {
+          const retryRes = await fetch(endpointBuilder(authUser, coords.repo), {
+            headers,
+            ...init,
+          });
+          if (retryRes.ok) {
+            return { res: retryRes, coords: { owner: authUser, repo: coords.repo } };
+          }
+        }
+      }
+
+      return { res, coords };
+    };
+
     // 1. Get Repo Summary Tool
     const getRepoSummaryTool: AgentTool = {
       name: "github_get_repo_summary",
@@ -91,15 +165,27 @@ export class GitHubConnector implements BaseConnector {
         "Get detailed information about a GitHub repository, including stars, forks, default branch, and open issues.",
       riskLevel: "LOW",
       inputSchema: z.object({
-        owner: z.string().describe("The repository owner (e.g., 'octocat')"),
-        repo: z.string().describe("The repository name (e.g., 'Hello-World')"),
+        owner: z
+          .string()
+          .optional()
+          .describe(
+            "The repository owner / organization username (e.g., 'Codder-lab'). Defaults to the authenticated user if omitted."
+          ),
+        repo: z
+          .string()
+          .describe("The repository name (e.g., 'ease-my-journey' or 'Codder-lab/ease-my-journey')"),
       }),
       execute: async ({ owner, repo }) => {
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-          headers,
-        });
+        const { res, coords } = await fetchGitHub(
+          (o, r) => `https://api.github.com/repos/${o}/${r}`,
+          owner,
+          repo
+        );
+
         if (!res.ok) {
-          throw new Error(`GitHub API error (${res.status}): ${await res.text()}`);
+          throw new Error(
+            `GitHub API error (${res.status}) for '${coords.owner}/${coords.repo}': ${await res.text()}`
+          );
         }
         const data = (await res.json()) as any;
         return {
@@ -121,8 +207,11 @@ export class GitHubConnector implements BaseConnector {
       description: "List issues in a GitHub repository.",
       riskLevel: "LOW",
       inputSchema: z.object({
-        owner: z.string().describe("The repository owner"),
-        repo: z.string().describe("The repository name"),
+        owner: z
+          .string()
+          .optional()
+          .describe("The repository owner / organization. Defaults to the authenticated user if omitted."),
+        repo: z.string().describe("The repository name (e.g., 'ease-my-journey' or 'owner/repo')"),
         state: z
           .enum(["open", "closed", "all"])
           .default("open")
@@ -130,12 +219,16 @@ export class GitHubConnector implements BaseConnector {
         limit: z.number().min(1).max(50).default(10).describe("Max items to return"),
       }),
       execute: async ({ owner, repo, state, limit }) => {
-        const res = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/issues?state=${state}&per_page=${limit}`,
-          { headers }
+        const { res, coords } = await fetchGitHub(
+          (o, r) => `https://api.github.com/repos/${o}/${r}/issues?state=${state}&per_page=${limit}`,
+          owner,
+          repo
         );
+
         if (!res.ok) {
-          throw new Error(`GitHub API error (${res.status}): ${await res.text()}`);
+          throw new Error(
+            `GitHub API error (${res.status}) for '${coords.owner}/${coords.repo}': ${await res.text()}`
+          );
         }
         const issues = (await res.json()) as any[];
         // Filter out pull requests which GitHub includes in issues endpoint
@@ -160,8 +253,11 @@ export class GitHubConnector implements BaseConnector {
       description: "Create a new issue in a GitHub repository.",
       riskLevel: "MEDIUM",
       inputSchema: z.object({
-        owner: z.string().describe("The repository owner"),
-        repo: z.string().describe("The repository name"),
+        owner: z
+          .string()
+          .optional()
+          .describe("The repository owner / organization. Defaults to the authenticated user if omitted."),
+        repo: z.string().describe("The repository name (e.g., 'ease-my-journey' or 'owner/repo')"),
         title: z.string().min(1).describe("The title of the issue"),
         body: z.string().optional().describe("Detailed description of the issue"),
         labels: z
@@ -170,16 +266,21 @@ export class GitHubConnector implements BaseConnector {
           .describe("Labels to attach to the issue"),
       }),
       execute: async ({ owner, repo, title, body, labels }) => {
-        const res = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/issues`,
+        const { res, coords } = await fetchGitHub(
+          (o, r) => `https://api.github.com/repos/${o}/${r}/issues`,
+          owner,
+          repo,
           {
             method: "POST",
             headers: { ...headers, "Content-Type": "application/json" },
             body: JSON.stringify({ title, body, labels }),
           }
         );
+
         if (!res.ok) {
-          throw new Error(`GitHub API error (${res.status}): ${await res.text()}`);
+          throw new Error(
+            `GitHub API error (${res.status}) for '${coords.owner}/${coords.repo}': ${await res.text()}`
+          );
         }
         const data = (await res.json()) as any;
         return {
@@ -198,8 +299,11 @@ export class GitHubConnector implements BaseConnector {
       description: "List pull requests in a GitHub repository.",
       riskLevel: "LOW",
       inputSchema: z.object({
-        owner: z.string().describe("The repository owner"),
-        repo: z.string().describe("The repository name"),
+        owner: z
+          .string()
+          .optional()
+          .describe("The repository owner / organization. Defaults to the authenticated user if omitted."),
+        repo: z.string().describe("The repository name (e.g., 'ease-my-journey' or 'owner/repo')"),
         state: z
           .enum(["open", "closed", "all"])
           .default("open")
@@ -207,12 +311,16 @@ export class GitHubConnector implements BaseConnector {
         limit: z.number().min(1).max(50).default(10).describe("Max PRs to return"),
       }),
       execute: async ({ owner, repo, state, limit }) => {
-        const res = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/pulls?state=${state}&per_page=${limit}`,
-          { headers }
+        const { res, coords } = await fetchGitHub(
+          (o, r) => `https://api.github.com/repos/${o}/${r}/pulls?state=${state}&per_page=${limit}`,
+          owner,
+          repo
         );
+
         if (!res.ok) {
-          throw new Error(`GitHub API error (${res.status}): ${await res.text()}`);
+          throw new Error(
+            `GitHub API error (${res.status}) for '${coords.owner}/${coords.repo}': ${await res.text()}`
+          );
         }
         const prs = (await res.json()) as any[];
         return prs.map((p) => ({
