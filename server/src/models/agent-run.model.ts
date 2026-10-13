@@ -6,6 +6,7 @@ export interface IAgentRun {
   runId: string;
   userId: string;
   conversationId?: string;
+  botSlug?: string;
   goal: string;
   status: AgentRunStatus;
   steps: AgentStep[];
@@ -83,6 +84,7 @@ const AgentRunSchema = new Schema<IAgentRun>(
     runId: { type: String, required: true, unique: true, index: true },
     userId: { type: String, required: true, index: true },
     conversationId: { type: String, index: true },
+    botSlug: { type: String, index: true },
     goal: { type: String, required: true },
     status: {
       type: String,

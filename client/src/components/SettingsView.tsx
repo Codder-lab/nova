@@ -28,12 +28,12 @@ export const SettingsView: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [hRes, tRes] = await Promise.all([
+      const [hRes, tRes] = await Promise.allSettled([
         api.getHealth(),
         api.listTools(),
       ]);
-      setHealth(hRes);
-      setTools(tRes.tools || []);
+      if (hRes.status === "fulfilled") setHealth(hRes.value);
+      if (tRes.status === "fulfilled") setTools(tRes.value?.tools || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -44,12 +44,12 @@ export const SettingsView: React.FC = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const [hRes, tRes] = await Promise.all([
+      const [hRes, tRes] = await Promise.allSettled([
         api.getHealth(),
         api.listTools(),
       ]);
-      setHealth(hRes);
-      setTools(tRes.tools || []);
+      if (hRes.status === "fulfilled") setHealth(hRes.value);
+      if (tRes.status === "fulfilled") setTools(tRes.value?.tools || []);
     } catch (err) {
       console.error(err);
     } finally {

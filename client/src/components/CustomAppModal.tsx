@@ -19,7 +19,6 @@ import {
   testIntegration,
 } from "@/services/integration.service";
 import {
-  Globe,
   Plus,
   Trash2,
   Loader2,
@@ -27,6 +26,7 @@ import {
   AlertCircle,
   Code2,
 } from "lucide-react";
+import { CustomRestLogo } from "@/components/icons/BrandLogos";
 
 interface CustomAppModalProps {
   isOpen: boolean;
@@ -206,8 +206,8 @@ export const CustomAppModal: React.FC<CustomAppModalProps> = ({
     >
       <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500">
-              <Globe className="w-5 h-5" />
+            <div className="w-10 h-10 flex items-center justify-center shrink-0">
+              <CustomRestLogo className="w-10 h-10" />
             </div>
             <div>
               <div className="flex items-center gap-2">

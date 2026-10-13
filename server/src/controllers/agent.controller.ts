@@ -11,6 +11,7 @@ import { queueService } from "../services/queue.service";
 const runAgentSchema = z.object({
   goal: z.string().min(1, "Goal is required"),
   conversationId: z.string().optional(),
+  botSlug: z.string().optional(),
   maxSteps: z.number().int().positive().optional(),
   timeoutMs: z.number().int().positive().optional(),
   provider: z.string().optional(),
@@ -37,11 +38,12 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
   }
 
   const userId = getUserId(req);
-  const { goal, conversationId, maxSteps, timeoutMs, provider, model } =
+  const { goal, conversationId, botSlug, maxSteps, timeoutMs, provider, model } =
     parseResult.data;
   const isDbConnected = mongoose.connection.readyState === 1;
 
   let activeSessionId = conversationId;
+  let effectiveBotSlug = botSlug || "nova-core";
 
   // 1. Session Setup & Persistence
   if (isDbConnected) {
@@ -56,25 +58,29 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
             "anonymous",
           ].includes(conv.userId);
           if (!isOwner && !isPublicGuestSession) {
-            res
-              .status(403)
-              .json({
-                error: "Access denied: Conversation belongs to another user",
-              });
+            res.status(403).json({
+              error: "Access denied: Conversation belongs to another user",
+            });
             return;
           }
+
+          if (botSlug && conv.botSlug !== botSlug) {
+            conv.botSlug = botSlug;
+          }
+          effectiveBotSlug = conv.botSlug || effectiveBotSlug;
 
           // If title is default, update it with goal
           if (conv.title === "New Chat" || conv.title === "New Conversation") {
             conv.title = goal.length > 45 ? `${goal.slice(0, 42)}...` : goal;
-            await conv.save();
           }
+          await conv.save();
         } else {
           // Specified ID wasn't found; create new session with this ID or a new doc
           const newConv = await Conversation.create({
             _id: new mongoose.Types.ObjectId(activeSessionId),
             userId,
             title: goal.length > 45 ? `${goal.slice(0, 42)}...` : goal,
+            botSlug: effectiveBotSlug,
             messageCount: 0,
             lastMessage: goal,
           });
@@ -85,6 +91,7 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
         const newConv = await Conversation.create({
           userId,
           title: goal.length > 45 ? `${goal.slice(0, 42)}...` : goal,
+          botSlug: effectiveBotSlug,
           messageCount: 0,
           lastMessage: goal,
         });
@@ -98,6 +105,7 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
           userId,
           role: "user",
           content: goal,
+          botSlug: effectiveBotSlug,
         });
       }
     } catch (dbErr: any) {
@@ -116,6 +124,7 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
       userId,
       goal,
       conversationId: activeSessionId,
+      botSlug: effectiveBotSlug,
       maxSteps,
       timeoutMs,
       provider: llm.name,
@@ -130,6 +139,7 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
           userId,
           role: "assistant",
           content: result.response,
+          botSlug: result.botSlug || effectiveBotSlug,
           runId: result.runId,
           steps: result.steps,
           durationMs: result.durationMs,
@@ -202,11 +212,19 @@ export function enqueueJob(req: Request, res: Response): void {
 }
 
 export function listTools(_req: Request, res: Response): void {
-  const tools = globalToolRegistry.getAll().map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    riskLevel: tool.riskLevel,
-  }));
+  const toolDefs = globalToolRegistry.toToolDefinitions();
+  const tools = globalToolRegistry.getAll().map((tool) => {
+    const def = toolDefs.find((d) => d.name === tool.name);
+    return {
+      name: tool.name,
+      description: tool.description,
+      riskLevel: tool.riskLevel,
+      requiresApproval: ["HIGH", "CRITICAL"].includes(
+        tool.riskLevel?.toUpperCase(),
+      ),
+      parameters: def?.parameters,
+    };
+  });
 
   res.status(200).json({ tools });
 }

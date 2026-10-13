@@ -3,10 +3,6 @@ import { Sidebar, type TabType } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
 import { TasksView } from "./components/TasksView";
 import { RemindersView } from "./components/RemindersView";
-import { MemoryView } from "./components/MemoryView";
-import { SchedulesView } from "./components/SchedulesView";
-import { RunsView } from "./components/RunsView";
-import { ResearchView } from "./components/ResearchView";
 import { SettingsView } from "./components/SettingsView";
 import { IntegrationsView } from "./components/IntegrationsView";
 import { AnalyticsView } from "./components/AnalyticsView";
@@ -55,10 +51,6 @@ export const App: React.FC = () => {
       chat: "Autonomous Assistant",
       tasks: "Tasks & Goals",
       reminders: "Reminders",
-      memory: "Memory Bank",
-      schedules: "Automated Schedulers",
-      runs: "Execution Runs",
-      research: "Web & Browser",
       integrations: "Integrations Hub",
       analytics: "Analytics & Observability",
       settings: "System & Policy",
@@ -71,11 +63,6 @@ export const App: React.FC = () => {
       chat: "Interactive conversational agent with persistent sessions and safety approvals",
       tasks: "Manage goals, track execution progress and organize priorities",
       reminders: "Time-based automated reminders and proactive notifications",
-      memory: "Long-term associative knowledge bank and user preferences",
-      schedules: "Recurring jobs, cron schedules, and periodic agent actions",
-      runs: "Audit logs, execution traces, token usage, and latency metrics",
-      research:
-        "Automated web research, headless browser navigation, and content extraction",
       integrations:
         "Connect Nova to GitHub, Slack, Discord, Notion, Telegram, or build custom REST/Webhook integrations",
       analytics:
@@ -202,10 +189,6 @@ export const App: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 mx-auto w-full max-w-7xl">
               {activeTab === "tasks" && <TasksView />}
               {activeTab === "reminders" && <RemindersView />}
-              {activeTab === "memory" && <MemoryView />}
-              {activeTab === "schedules" && <SchedulesView />}
-              {activeTab === "runs" && <RunsView />}
-              {activeTab === "research" && <ResearchView />}
               {activeTab === "integrations" && <IntegrationsView />}
               {activeTab === "analytics" && <AnalyticsView />}
               {activeTab === "settings" && <SettingsView />}

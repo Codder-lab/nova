@@ -14,6 +14,7 @@ import { modelRouter } from "./routes/model.routes";
 import integrationRoutes from "./routes/integration.routes";
 import whatsappRoutes from "./routes/whatsapp.routes";
 import analyticsRoutes from "./routes/analytics.routes";
+import { botRouter } from "./routes/bot.routes";
 
 export function createApp(): express.Application {
   const app = express();
@@ -42,7 +43,7 @@ export function createApp(): express.Application {
   app.use(express.urlencoded({ extended: true }));
 
   // Health check
-  app.get("/health", (_req: Request, res: Response) => {
+  const healthHandler = (_req: Request, res: Response) => {
     res.status(200).json({
       status: "ok",
       service: "nova-assistant-api",
@@ -50,7 +51,9 @@ export function createApp(): express.Application {
       llmProvider: env.LLM_PROVIDER,
       model: env.OLLAMA_MODEL,
     });
-  });
+  };
+  app.get("/health", healthHandler);
+  app.get("/api/health", healthHandler);
 
   // API Routes
   app.use("/api/auth", authRouter);
@@ -65,6 +68,7 @@ export function createApp(): express.Application {
   app.use("/api/integrations", integrationRoutes);
   app.use("/api/whatsapp", whatsappRoutes);
   app.use("/api/analytics", analyticsRoutes);
+  app.use("/api/bots", botRouter);
 
   // 404 Handler
   app.use((_req: Request, res: Response) => {

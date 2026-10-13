@@ -34,6 +34,11 @@ const envSchema = z.object({
   // Agent Safeguards
   MAX_AGENT_STEPS: z.string().transform(Number).default("10"),
   MAX_EXECUTION_TIME_MS: z.string().transform(Number).default("60000"),
+
+  // Google Workspace OAuth (Gmail & Google Calendar)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -48,6 +48,7 @@ export interface AgentRun {
   id: string;
   userId: string;
   conversationId?: string;
+  botSlug?: string;
   goal: string;
   status: AgentRunStatus;
   steps: AgentStep[];
@@ -68,6 +69,7 @@ export interface AgentInput {
   userId: string;
   goal: string;
   conversationId?: string;
+  botSlug?: string;
   runId?: string;
   maxSteps?: number;
   timeoutMs?: number;
@@ -81,6 +83,7 @@ export interface AgentResult {
   status: AgentRunStatus;
   goal: string;
   response: string;
+  botSlug?: string;
   steps: AgentStep[];
   toolCallsCount: number;
   durationMs: number;

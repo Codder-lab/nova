@@ -6,6 +6,8 @@ import { DiscordConnector } from "./providers/discord.connector";
 import { NotionConnector } from "./providers/notion.connector";
 import { TelegramConnector } from "./providers/telegram.connector";
 import { WhatsAppConnector } from "./providers/whatsapp.connector";
+import { GmailConnector } from "./providers/gmail.connector";
+import { GoogleCalendarConnector } from "./providers/google-calendar.connector";
 import { CustomRestConnector } from "./providers/custom-rest.connector";
 import { logger } from "../utils/logger";
 
@@ -18,6 +20,8 @@ export class ConnectorRegistry {
 
   private registerDefaults(): void {
     this.register(new GitHubConnector());
+    this.register(new GmailConnector());
+    this.register(new GoogleCalendarConnector());
     this.register(new SlackConnector());
     this.register(new DiscordConnector());
     this.register(new NotionConnector());
