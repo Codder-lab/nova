@@ -21,6 +21,36 @@ export class BrowserManager {
     return BrowserManager.instance;
   }
 
+  private async launchBrowser(): Promise<Browser> {
+    const launchOptions = { headless: true };
+
+    // 1. Try bundled Playwright Chromium
+    try {
+      return await chromium.launch(launchOptions);
+    } catch (err: any) {
+      if (!err.message.includes("Executable doesn't exist")) {
+        throw err;
+      }
+      logger.info("Bundled Chromium missing, falling back to installed system Chrome...");
+    }
+
+    // 2. Fallback to installed Google Chrome
+    try {
+      return await chromium.launch({ ...launchOptions, channel: "chrome" });
+    } catch (chromeErr: any) {
+      logger.info("System Chrome unavailable, falling back to Microsoft Edge...");
+    }
+
+    // 3. Fallback to installed Microsoft Edge (built into Windows)
+    try {
+      return await chromium.launch({ ...launchOptions, channel: "msedge" });
+    } catch (edgeErr: any) {
+      throw new Error(
+        `No supported browser found on system. Run 'npx playwright install chromium' or install Google Chrome/Edge. Details: ${edgeErr.message}`,
+      );
+    }
+  }
+
   public async getOrCreateSession(sessionId: string): Promise<BrowserSession> {
     const existing = this.sessions.get(sessionId);
     if (existing && !existing.browser.isConnected()) {
@@ -31,9 +61,7 @@ export class BrowserManager {
     }
 
     try {
-      const browser = await chromium.launch({
-        headless: true,
-      });
+      const browser = await this.launchBrowser();
 
       const context = await browser.newContext({
         userAgent:
@@ -53,7 +81,7 @@ export class BrowserManager {
 
       this.sessions.set(sessionId, session);
       logger.info(
-        { sessionId },
+        { sessionId, version: browser.version() },
         "Launched sandboxed Playwright browser session",
       );
       return session;

@@ -31,10 +31,20 @@ import {
   Mic,
   Headphones,
   Mail,
+  Monitor,
+  Camera,
+  MousePointer,
+  Terminal,
 } from "lucide-react";
 import { api } from "../services/api";
 import { socketClient } from "../services/socket";
+import {
+  LiveBrowserPreview,
+  type BrowserPreviewData,
+} from "./LiveBrowserPreview";
+import { CodeOutputPanel } from "./CodeOutputPanel";
 import type { AgentStep, VoiceConfig, HydratedBot } from "@nova/shared";
+
 import { DEFAULT_VOICE_CONFIG } from "@nova/shared";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,6 +165,77 @@ function getHumanFriendlyStep(step: AgentStep): {
       return {
         title: `Fetching & reading web page: ${args.url || ""}`,
         icon: Globe,
+      };
+    }
+    if (name === "open_browser") {
+      return {
+        title: `Launching browser session${args.initialUrl ? `: ${args.initialUrl}` : ""}`,
+        icon: Monitor,
+      };
+    }
+    if (name === "navigate_to") {
+      return {
+        title: `Navigating browser to: ${args.url || ""}`,
+        icon: Globe,
+      };
+    }
+    if (name === "take_screenshot") {
+      return {
+        title: "Capturing visual screenshot of page",
+        icon: Camera,
+      };
+    }
+    if (name === "click_element") {
+      return {
+        title: `Clicking element: ${args.selector || ""}`,
+        icon: MousePointer,
+      };
+    }
+    if (name === "type_into") {
+      return {
+        title: `Typing into element: ${args.selector || ""}`,
+        detail: args.text ? `Text: "${args.text}"` : undefined,
+        icon: Wrench,
+      };
+    }
+    if (name === "scroll_page") {
+      return {
+        title: `Scrolling page ${args.direction || "down"} (${args.amount || 500}px)`,
+        icon: Monitor,
+      };
+    }
+    if (name === "hover_element") {
+      return {
+        title: `Hovering over: ${args.selector || ""}`,
+        icon: MousePointer,
+      };
+    }
+    if (name === "wait_for_selector") {
+      return {
+        title: `Waiting for selector: ${args.selector || ""}`,
+        icon: Clock,
+      };
+    }
+    if (name === "get_page_elements") {
+      return {
+        title: `Scanning interactive elements (${args.filter || "all"})`,
+        icon: Monitor,
+      };
+    }
+    if (name === "extract_page_content") {
+      return {
+        title: "Extracting readable page text and structure",
+        icon: Globe,
+      };
+    }
+    if (name === "execute_code") {
+      const lang = args.language || "code";
+      return {
+        title: `Executing ${lang} in sandbox`,
+        detail: args.code
+          ? `${args.code.slice(0, 90).replace(/\n/g, " ")}${args.code.length > 90 ? "..." : ""}`
+          : undefined,
+        icon: Terminal,
       };
     }
     if (name === "create_task") {
@@ -327,7 +408,8 @@ const ThinkingProcess: React.FC<{
   steps?: AgentStep[];
   status?: string;
   durationMs?: number;
-}> = ({ steps = [], status, durationMs }) => {
+  onOpenScreenshot?: (data: BrowserPreviewData) => void;
+}> = ({ steps = [], status, durationMs, onOpenScreenshot }) => {
   const isRunning = status === "running";
   const [expanded, setExpanded] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -418,6 +500,75 @@ const ThinkingProcess: React.FC<{
                       {friendly.detail}
                     </div>
                   )}
+
+                  {step.toolCall?.result &&
+                    typeof step.toolCall.result === "object" &&
+                    (step.toolCall.result as any).imageBase64 && (
+                      <div className="mt-2 rounded-md overflow-hidden border border-border/80 bg-black/60">
+                        <div className="p-1 px-2 bg-muted/60 text-[10px] text-muted-foreground flex items-center justify-between">
+                          <span className="flex items-center gap-1 font-medium">
+                            <Monitor className="w-3 h-3 text-primary" />
+                            <span>Browser View</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const r = step.toolCall!.result as any;
+                              onOpenScreenshot?.({
+                                imageBase64: r.imageBase64,
+                                url: r.url || r.currentUrl,
+                                title: r.title,
+                                timestamp: new Date().toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                }),
+                              });
+                            }}
+                            className="text-primary hover:underline text-[9px] cursor-pointer"
+                          >
+                            Pop out
+                          </button>
+                        </div>
+                        <img
+                          src={
+                            (step.toolCall.result as any).imageBase64.startsWith("data:")
+                              ? (step.toolCall.result as any).imageBase64
+                              : `data:image/png;base64,${(step.toolCall.result as any).imageBase64}`
+                          }
+                          alt="Live screen"
+                          className="max-h-40 w-full object-contain cursor-pointer hover:opacity-90 bg-black/90"
+                          onClick={() => {
+                            const r = step.toolCall!.result as any;
+                            onOpenScreenshot?.({
+                              imageBase64: r.imageBase64,
+                              url: r.url || r.currentUrl,
+                              title: r.title,
+                              timestamp: new Date().toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                              }),
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
+
+                  {step.toolCall?.name === "execute_code" &&
+                    step.toolCall.result &&
+                    typeof step.toolCall.result === "object" && (
+                      <CodeOutputPanel
+                        data={{
+                          ...(step.toolCall.result as any),
+                          code: (step.toolCall.arguments as any)?.code,
+                          language:
+                            (step.toolCall.arguments as any)?.language ||
+                            (step.toolCall.result as any)?.language ||
+                            "javascript",
+                        }}
+                      />
+                    )}
                 </div>
               );
             })}
@@ -506,6 +657,75 @@ const ThinkingProcess: React.FC<{
                         )}
                       </div>
                     )}
+
+                    {step.toolCall?.result &&
+                      typeof step.toolCall.result === "object" &&
+                      (step.toolCall.result as any).imageBase64 && (
+                        <div className="mt-2 rounded-md overflow-hidden border border-border/80 bg-black/60">
+                          <div className="p-1 px-2 bg-muted/60 text-[10px] text-muted-foreground flex items-center justify-between">
+                            <span className="flex items-center gap-1 font-medium">
+                              <Monitor className="w-3 h-3 text-primary" />
+                              <span>Browser View</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const r = step.toolCall!.result as any;
+                                onOpenScreenshot?.({
+                                  imageBase64: r.imageBase64,
+                                  url: r.url || r.currentUrl,
+                                  title: r.title,
+                                  timestamp: new Date().toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    second: "2-digit",
+                                  }),
+                                });
+                              }}
+                              className="text-primary hover:underline text-[9px] cursor-pointer"
+                            >
+                              Pop out
+                            </button>
+                          </div>
+                          <img
+                            src={
+                              (step.toolCall.result as any).imageBase64.startsWith("data:")
+                                ? (step.toolCall.result as any).imageBase64
+                                : `data:image/png;base64,${(step.toolCall.result as any).imageBase64}`
+                            }
+                            alt="Live screen"
+                            className="max-h-40 w-full object-contain cursor-pointer hover:opacity-90 bg-black/90"
+                            onClick={() => {
+                              const r = step.toolCall!.result as any;
+                              onOpenScreenshot?.({
+                                imageBase64: r.imageBase64,
+                                url: r.url || r.currentUrl,
+                                title: r.title,
+                                timestamp: new Date().toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                }),
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
+
+                    {step.toolCall?.name === "execute_code" &&
+                      step.toolCall.result &&
+                      typeof step.toolCall.result === "object" && (
+                        <CodeOutputPanel
+                          data={{
+                            ...(step.toolCall.result as any),
+                            code: (step.toolCall.arguments as any)?.code,
+                            language:
+                              (step.toolCall.arguments as any)?.language ||
+                              (step.toolCall.result as any)?.language ||
+                              "javascript",
+                          }}
+                        />
+                      )}
                   </div>
                 );
               })}
@@ -551,7 +771,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeBot, setActiveBot] = useState<HydratedBot | null>(null);
 
+  // Live Browser Preview state
+  const [browserPreview, setBrowserPreview] =
+    useState<BrowserPreviewData | null>(null);
+  const [browserPreviewOpen, setBrowserPreviewOpen] = useState(false);
+
+  const handleCloseBrowserSession = async () => {
+    setBrowserPreviewOpen(false);
+    setBrowserPreview(null);
+    try {
+      await api.closeBrowserSession();
+    } catch (err) {
+      console.error("Failed to terminate browser session:", err);
+    }
+  };
+
   // Session state
+
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(
     propActiveSessionId || null,
@@ -575,7 +811,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return DEFAULT_VOICE_CONFIG;
   });
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
-  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(
+    null,
+  );
 
   const handleVoiceConfigChange = (newConfig: VoiceConfig) => {
     setVoiceConfig(newConfig);
@@ -671,7 +909,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [voiceConfig.pushToTalk, sttSupported, isListening, tts.isSpeaking, startListening, stopListening, tts]);
+  }, [
+    voiceConfig.pushToTalk,
+    sttSupported,
+    isListening,
+    tts.isSpeaking,
+    startListening,
+    stopListening,
+    tts,
+  ]);
 
   const toggleMessageSpeech = (msgId: string, content: string) => {
     if (speakingMessageId === msgId) {
@@ -755,6 +1001,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
             isStreaming: false,
           }));
           setMessages(loaded);
+
+          // Restore browser preview from recent step if available
+          for (let i = loaded.length - 1; i >= 0; i--) {
+            const m = loaded[i];
+            if (m.steps) {
+              const screenStep = m.steps.find(
+                (s) => (s.toolCall?.result as any)?.imageBase64,
+              );
+              if (screenStep) {
+                const res = screenStep.toolCall!.result as any;
+                setBrowserPreview({
+                  imageBase64: res.imageBase64,
+                  url: res.url || res.currentUrl,
+                  title: res.title,
+                  timestamp: new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }),
+                });
+                break;
+              }
+            }
+          }
         } else {
           setMessages([]);
         }
@@ -782,6 +1052,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const step = data?.payload || data?.step || data;
       const runId = data?.runId;
       if (!step || !step.id) return;
+
+      const resObj = step.toolCall?.result as any;
+      if (resObj?.imageBase64) {
+        setBrowserPreview({
+          imageBase64: resObj.imageBase64,
+          url: resObj.url || resObj.currentUrl,
+          title: resObj.title,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+        });
+        setBrowserPreviewOpen(true);
+      }
 
       setMessages((prev) =>
         prev.map((msg) => {
@@ -856,11 +1141,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
       );
     };
 
+    const handleBrowserScreenshot = (data: any) => {
+      const payload = data?.payload || data;
+      if (payload?.imageBase64) {
+        setBrowserPreview({
+          imageBase64: payload.imageBase64,
+          url: payload.url,
+          title: payload.title,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+        });
+        setBrowserPreviewOpen(true);
+      }
+    };
+
     socket.on("agent:step", handleStep);
     socket.on("agent:tool:call", handleStep);
     socket.on("agent:approval_required", handleApprovalRequired);
     socket.on("agent:approval_resolved", handleApprovalResolved);
     socket.on("agent:token", handleToken);
+    socket.on("browser:screenshot", handleBrowserScreenshot);
 
     return () => {
       socket.off("agent:step", handleStep);
@@ -868,6 +1171,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       socket.off("agent:approval_required", handleApprovalRequired);
       socket.off("agent:approval_resolved", handleApprovalResolved);
       socket.off("agent:token", handleToken);
+      socket.off("browser:screenshot", handleBrowserScreenshot);
     };
   }, []);
 
@@ -999,6 +1303,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }),
       );
 
+      // Check if any step produced a browser screenshot to update preview
+      if (response.steps) {
+        for (const s of response.steps) {
+          const resObj = s.toolCall?.result as any;
+          if (resObj?.imageBase64) {
+            setBrowserPreview({
+              imageBase64: resObj.imageBase64,
+              url: resObj.url || resObj.currentUrl,
+              title: resObj.title,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }),
+            });
+            setBrowserPreviewOpen(true);
+            break;
+          }
+        }
+      }
+
       // Refresh sidebar sessions to show latest message & turn count
       loadSessionsList();
     } catch (err: any) {
@@ -1099,7 +1424,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  const getAssistantContent = (msg: ChatMessage): string => {
+    if (msg.content && msg.content.trim()) return msg.content;
+    const codeStep = msg.steps?.find(
+      (s: AgentStep) => s.toolCall?.name === "execute_code",
+    );
+    if (codeStep && codeStep.toolCall?.arguments) {
+      const lang =
+        (codeStep.toolCall.arguments as any)?.language || "python";
+      const code = (codeStep.toolCall.arguments as any)?.code || "";
+      const stdout = (codeStep.toolCall.result as any)?.stdout;
+      const outStr = stdout
+        ? `\n\n### Output:\n\`\`\`text\n${stdout}\n\`\`\``
+        : "";
+      return `Here is the requested ${lang} script:\n\n\`\`\`${lang}\n${code}\n\`\`\`${outStr}`;
+    }
+    return "";
+  };
+
+
   const isEmpty = messages.length === 0;
+
 
   return (
     <div className="flex h-full w-full bg-card overflow-hidden">
@@ -1301,8 +1646,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 voiceConfig.handsFree
                   ? "text-amber-500 font-medium bg-amber-500/10 hover:bg-amber-500/20"
                   : voiceConfig.autoSpeak
-                  ? "text-primary bg-primary/10 hover:bg-primary/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                    ? "text-primary bg-primary/10 hover:bg-primary/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
               title="Voice & Hands-Free Settings"
             >
@@ -1311,8 +1656,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 {voiceConfig.handsFree
                   ? "Hands-Free"
                   : voiceConfig.autoSpeak
-                  ? "Auto-Read"
-                  : "Voice"}
+                    ? "Auto-Read"
+                    : "Voice"}
               </span>
             </Button>
 
@@ -1371,7 +1716,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {activeBot ? activeBot.name : "Nova Autonomous Agent"}
                 </h2>
                 {activeBot && activeBot.userPreference?.tone !== "default" && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 capitalize">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 capitalize"
+                  >
                     {activeBot.userPreference.tone}
                   </Badge>
                 )}
@@ -1383,36 +1731,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </p>
 
               {/* Bot-Specific Everyday Task Routines */}
-              {activeBot && activeBot.routines && activeBot.routines.length > 0 && (
-                <div className="w-full max-w-xl mb-6 text-left">
-                  <div className="flex items-center justify-between mb-2 px-0.5">
-                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-primary" />
-                      <span>{activeBot.name} Everyday Task Routines</span>
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      One-click autonomous tasks
-                    </span>
-                  </div>
+              {activeBot &&
+                activeBot.routines &&
+                activeBot.routines.length > 0 && (
+                  <div className="w-full max-w-xl mb-6 text-left">
+                    <div className="flex items-center justify-between mb-2 px-0.5">
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-primary" />
+                        <span>{activeBot.name} Everyday Task Routines</span>
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        One-click autonomous tasks
+                      </span>
+                    </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {activeBot.routines.map((routine) => (
-                      <button
-                        key={routine.id}
-                        onClick={() => handleSend(routine.prompt)}
-                        className="flex flex-col items-start p-3 rounded-lg border border-border bg-card/80 hover:bg-muted/60 hover:border-border text-left transition-all cursor-pointer group shadow-2xs"
-                      >
-                        <span className="text-xs font-semibold text-foreground group-hover:text-primary mb-1">
-                          {routine.title}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
-                          {routine.description}
-                        </span>
-                      </button>
-                    ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {activeBot.routines.map((routine) => (
+                        <button
+                          key={routine.id}
+                          onClick={() => handleSend(routine.prompt)}
+                          className="flex flex-col items-start p-3 rounded-lg border border-border bg-card/80 hover:bg-muted/60 hover:border-border text-left transition-all cursor-pointer group shadow-2xs"
+                        >
+                          <span className="text-xs font-semibold text-foreground group-hover:text-primary mb-1">
+                            {routine.title}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            {routine.description}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* General Quick Action Cards */}
               <div className="w-full max-w-xl text-left">
@@ -1463,8 +1813,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       msg.role === "user"
                         ? "bg-secondary text-foreground border border-border"
                         : msg.botSlug
-                        ? cn(getBotVisual(msg.botSlug).bg, "border border-border/40")
-                        : "bg-secondary text-secondary-foreground",
+                          ? cn(
+                              getBotVisual(msg.botSlug).bg,
+                              "border border-border/40",
+                            )
+                          : "bg-secondary text-secondary-foreground",
                     )}
                   >
                     {msg.role === "user" ? (
@@ -1475,7 +1828,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           msg.botSlug || activeBot?.slug || "nova-core",
                         );
                         const BIcon = BVisual.icon;
-                        return <BIcon className={cn("w-3.5 h-3.5", BVisual.color)} />;
+                        return (
+                          <BIcon className={cn("w-3.5 h-3.5", BVisual.color)} />
+                        );
                       })()
                     )}
                   </Avatar>
@@ -1495,7 +1850,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             const bSlug =
                               msg.botSlug || activeBot?.slug || "nova-core";
                             const visual = getBotVisual(bSlug);
-                            return visual.badge ? `Nova ${visual.badge}` : "Nova Core";
+                            return visual.badge
+                              ? `Nova ${visual.badge}`
+                              : "Nova Core";
                           })()}
                         </span>
                         {msg.botSlug && (
@@ -1522,6 +1879,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         steps={msg.steps}
                         status={msg.status}
                         durationMs={msg.durationMs}
+                        onOpenScreenshot={(data: BrowserPreviewData) => {
+                          setBrowserPreview(data);
+                          setBrowserPreviewOpen(true);
+                        }}
                       />
                     )}
 
@@ -1544,13 +1905,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           {msg.pendingApproval.explanation}
                         </p>
 
-                        <div className="p-2 rounded-md bg-background border border-border font-mono text-[11px] text-foreground break-all">
-                          <span className="text-muted-foreground font-sans">
-                            Tool:{" "}
-                          </span>
-                          <strong>{msg.pendingApproval.toolName}</strong> (
-                          {JSON.stringify(msg.pendingApproval.arguments)})
-                        </div>
+                        {msg.pendingApproval.toolName === "execute_code" &&
+                        (msg.pendingApproval.arguments as any)?.code ? (
+                          <div className="rounded-md border border-border/80 bg-zinc-950 p-2.5 font-mono text-[11px] overflow-hidden">
+                            <div className="text-[10px] text-amber-400 font-semibold mb-1 flex items-center justify-between pb-1 border-b border-zinc-800">
+                              <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                                <Terminal className="w-3 h-3 text-amber-400" />
+                                Language: {(msg.pendingApproval.arguments as any)?.language || "javascript"}
+                              </span>
+                              <span className="text-zinc-500 font-normal">
+                                Timeout: {(msg.pendingApproval.arguments as any)?.timeoutMs || 10000}ms
+                              </span>
+                            </div>
+                            <pre className="max-h-44 overflow-y-auto overflow-x-auto text-zinc-200 whitespace-pre p-1">
+                              {(msg.pendingApproval.arguments as any).code}
+                            </pre>
+                          </div>
+                        ) : (
+                          <div className="p-2 rounded-md bg-background border border-border font-mono text-[11px] text-foreground break-all">
+                            <span className="text-muted-foreground font-sans">
+                              Tool:{" "}
+                            </span>
+                            <strong>{msg.pendingApproval.toolName}</strong> (
+                            {JSON.stringify(msg.pendingApproval.arguments)})
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-2 pt-1">
                           <Button
@@ -1576,67 +1955,73 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </div>
                     )}
 
-                    {msg.role === "assistant" && msg.content ? (
-                      <StreamedMarkdownResponse
-                        text={msg.content}
-                        isStreaming={msg.isStreaming}
-                        onStreamComplete={() =>
-                          handleStreamComplete(msg.id, msg.content)
-                        }
-                        onScroll={scrollToBottom}
-                      />
-                    ) : null}
+                    {msg.role === "assistant" && (() => {
+                      const displayContent = getAssistantContent(msg);
+                      if (!displayContent) return null;
 
-                    {msg.role === "assistant" && msg.content && (
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-border text-[11px] text-muted-foreground">
-                        <div className="flex items-center gap-3">
-                          {msg.durationMs !== undefined && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />{" "}
-                              {(msg.durationMs / 1000).toFixed(1)}s
-                            </span>
-                          )}
-                          {msg.toolCallsCount !== undefined &&
-                            msg.toolCallsCount > 0 && (
-                              <span className="flex items-center gap-1">
-                                <Wrench className="w-3 h-3" />{" "}
-                                {msg.toolCallsCount}{" "}
-                                {msg.toolCallsCount === 1 ? "tool" : "tools"}
-                              </span>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <MessageVoiceButton
-                            isSpeakingThis={speakingMessageId === msg.id}
-                            onToggle={() =>
-                              toggleMessageSpeech(msg.id, msg.content)
+                      return (
+                        <>
+                          <StreamedMarkdownResponse
+                            text={displayContent}
+                            isStreaming={msg.isStreaming}
+                            onStreamComplete={() =>
+                              handleStreamComplete(msg.id, displayContent)
                             }
-                            disabled={loading}
+                            onScroll={scrollToBottom}
                           />
 
-                          <button
-                            onClick={() => copyToClipboard(msg.content, msg.id)}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded hover:bg-muted"
-                            title="Copy response"
-                          >
-                            {copiedId === msg.id ? (
-                              <>
-                                <CheckCheck className="w-3 h-3 text-emerald-500" />
-                                <span className="text-[10px] text-emerald-500 font-medium">
-                                  Copied
+                          <div className="flex items-center justify-between mt-3 pt-2 border-t border-border text-[11px] text-muted-foreground">
+                            <div className="flex items-center gap-3">
+                              {msg.durationMs !== undefined && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />{" "}
+                                  {(msg.durationMs / 1000).toFixed(1)}s
                                 </span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3 h-3" />
-                                <span className="text-[10px]">Copy</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                              )}
+                              {msg.toolCallsCount !== undefined &&
+                                msg.toolCallsCount > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <Wrench className="w-3 h-3" />{" "}
+                                    {msg.toolCallsCount}{" "}
+                                    {msg.toolCallsCount === 1 ? "tool" : "tools"}
+                                  </span>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <MessageVoiceButton
+                                isSpeakingThis={speakingMessageId === msg.id}
+                                onToggle={() =>
+                                  toggleMessageSpeech(msg.id, displayContent)
+                                }
+                                disabled={loading}
+                              />
+
+                              <button
+                                onClick={() => copyToClipboard(displayContent, msg.id)}
+                                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5 px-1.5 rounded hover:bg-muted"
+                                title="Copy response"
+                              >
+                                {copiedId === msg.id ? (
+                                  <>
+                                    <CheckCheck className="w-3 h-3 text-emerald-500" />
+                                    <span className="text-[10px] text-emerald-500 font-medium">
+                                      Copied
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3" />
+                                    <span className="text-[10px]">Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+
                   </div>
                 </div>
               ))}
@@ -1708,8 +2093,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   isListening
                     ? "Listening... speak now..."
                     : voiceConfig.pushToTalk
-                    ? "Describe a goal, ask a question, or hold Spacebar..."
-                    : "Describe a goal or ask a question..."
+                      ? "Describe a goal, ask a question, or hold Spacebar..."
+                      : "Describe a goal or ask a question..."
                 }
                 value={inputGoal}
                 onChange={(e) => setInputGoal(e.target.value)}
@@ -1747,8 +2132,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     isListening
                       ? "Stop listening"
                       : voiceConfig.pushToTalk
-                      ? "Click or Hold Spacebar to speak"
-                      : "Click to start voice dictation"
+                        ? "Click or Hold Spacebar to speak"
+                        : "Click to start voice dictation"
                   }
                 >
                   {isListening ? (
@@ -1781,6 +2166,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Live Browser Preview floating panel */}
+      <LiveBrowserPreview
+        preview={browserPreview}
+        isOpen={browserPreviewOpen}
+        onClose={handleCloseBrowserSession}
+        onMinimize={() => setBrowserPreviewOpen(false)}
+        onTerminate={handleCloseBrowserSession}
+      />
+
+      {/* Floating Browser Preview reopening trigger */}
+      {browserPreview && !browserPreviewOpen && (
+        <div className="fixed bottom-20 right-4 z-40 flex items-center gap-1 rounded-full bg-primary/95 text-primary-foreground text-xs shadow-xl backdrop-blur-xs border border-primary/20 pl-3 pr-1.5 py-1">
+          <button
+            onClick={() => setBrowserPreviewOpen(true)}
+            className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer mr-1"
+            title="Open Live Browser Session Preview"
+          >
+            <Monitor className="w-3.5 h-3.5" />
+            <span className="font-medium">Browser View</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </button>
+          <button
+            onClick={handleCloseBrowserSession}
+            className="p-1 rounded-full hover:bg-destructive hover:text-destructive-foreground text-primary-foreground/70 transition-colors cursor-pointer"
+            title="Close and terminate browser session completely"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
 
       {/* Voice Settings Modal */}
       <VoiceSettingsModal

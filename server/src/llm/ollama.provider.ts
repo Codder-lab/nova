@@ -113,7 +113,7 @@ export class OllamaProvider implements LLMProvider {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
+      let response = await fetch(`${this.baseUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -121,7 +121,28 @@ export class OllamaProvider implements LLMProvider {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Ollama API error (${response.status}): ${errorText}`);
+        if (
+          errorText.toLowerCase().includes("multimodal") &&
+          payload.messages.some((m: any) => m.images)
+        ) {
+          logger.warn(
+            { model: this.model },
+            "Ollama model does not support multimodal input. Retrying without images.",
+          );
+          const sanitizedMessages = payload.messages.map((m: any) => {
+            const { images, ...rest } = m;
+            return rest;
+          });
+          response = await fetch(`${this.baseUrl}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...payload, messages: sanitizedMessages }),
+          });
+        }
+        if (!response.ok) {
+          const finalErrText = await response.text().catch(() => errorText);
+          throw new Error(`Ollama API error (${response.status}): ${finalErrText || errorText}`);
+        }
       }
 
       const data: any = await response.json();
@@ -285,6 +306,14 @@ export class OllamaProvider implements LLMProvider {
 
       if (msg.role === "tool") {
         out.role = "tool";
+      }
+
+      const isVisionCapable =
+        /vision|vl|llava|bakllava|minicpm|moondream/i.test(this.model);
+      if (isVisionCapable && msg.images && msg.images.length > 0) {
+        out.images = msg.images.map((img) =>
+          img.replace(/^data:image\/[a-zA-Z0-9\.\+-]+;base64,/, ""),
+        );
       }
 
       return out;

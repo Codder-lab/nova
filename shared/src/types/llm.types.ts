@@ -14,6 +14,7 @@ export interface ChatMessage {
   name?: string;
   toolCalls?: ToolCallItem[];
   toolCallId?: string;
+  images?: string[];
 }
 
 export interface ToolParameterProperty {

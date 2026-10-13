@@ -2,7 +2,11 @@ import { Server as HttpServer } from "http";
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
-import { AgentSocketEvents, AgentStreamEvent } from "@nova/shared";
+import {
+  AgentSocketEvents,
+  AgentStreamEvent,
+  BrowserScreenshotPayload,
+} from "@nova/shared";
 
 export class SocketService {
   private static instance: SocketService;
@@ -110,6 +114,19 @@ export class SocketService {
 
   public emitToken(userId: string, runId: string, token: string): void {
     this.emitEvent(userId, runId, AgentSocketEvents.RUN_TOKEN, { token });
+  }
+
+  public emitBrowserScreenshot(
+    userId: string,
+    runId: string,
+    screenshot: BrowserScreenshotPayload,
+  ): void {
+    this.emitEvent(
+      userId,
+      runId,
+      AgentSocketEvents.BROWSER_SCREENSHOT,
+      screenshot,
+    );
   }
 }
 

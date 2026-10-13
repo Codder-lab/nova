@@ -36,7 +36,14 @@ import {
   clickElementTool,
   typeIntoTool,
   extractPageContentTool,
+  takeScreenshotTool,
+  scrollPageTool,
+  hoverElementTool,
+  waitForSelectorTool,
+  getPageElementsTool,
+  closeBrowserTool,
 } from "./browser/browser.tools";
+import { executeCodeTool } from "./code/code-executor.tool";
 
 export * from "./base/agent-tool.interface";
 export * from "./base/tool-registry";
@@ -52,6 +59,7 @@ export * from "./system/file.tools";
 export * from "./productivity/scheduler.tools";
 export * from "./browser/browser.tools";
 export * from "./browser/browser.manager";
+export * from "./code/code-executor.tool";
 
 export function initializeDefaultTools(): void {
   // System Tools
@@ -89,8 +97,19 @@ export function initializeDefaultTools(): void {
   globalToolRegistry.register(clickElementTool);
   globalToolRegistry.register(typeIntoTool);
   globalToolRegistry.register(extractPageContentTool);
+  globalToolRegistry.register(takeScreenshotTool);
+  globalToolRegistry.register(scrollPageTool);
+  globalToolRegistry.register(hoverElementTool);
+  globalToolRegistry.register(waitForSelectorTool);
+  globalToolRegistry.register(getPageElementsTool);
+  globalToolRegistry.register(closeBrowserTool);
+
+  // Code Execution Tools
+  globalToolRegistry.register(executeCodeTool);
 
   // Research Tools
   globalToolRegistry.register(webSearchTool);
   globalToolRegistry.register(fetchWebPageTool);
 }
+
+

@@ -7,6 +7,7 @@ export const AgentSocketEvents = {
   RUN_TOKEN: "agent:token",
   APPROVAL_REQUIRED: "agent:approval_required",
   APPROVAL_RESOLVED: "agent:approval_resolved",
+  BROWSER_SCREENSHOT: "browser:screenshot",
 } as const;
 
 export type AgentSocketEventName =
@@ -18,4 +19,11 @@ export interface AgentStreamEvent<T = unknown> {
   type: string;
   timestamp: string;
   payload: T;
+}
+
+export interface BrowserScreenshotPayload {
+  imageBase64: string;
+  mimeType?: string;
+  url?: string;
+  title?: string;
 }

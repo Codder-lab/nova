@@ -1,6 +1,54 @@
-import React from "react";
-import { ExternalLink, Globe } from "lucide-react";
+import React, { useState } from "react";
+import { ExternalLink, Globe, Copy, Check, Code } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const CodeBlockView: React.FC<{ code: string; lang?: string }> = ({
+  code,
+  lang,
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="my-2.5 rounded-lg border border-border/80 bg-zinc-950 text-zinc-100 overflow-hidden shadow-xs">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-[11px] font-mono select-none">
+        <div className="flex items-center gap-1.5 text-zinc-400">
+          <Code className="w-3.5 h-3.5 text-primary" />
+          <span className="font-semibold uppercase tracking-wider text-[10px]">
+            {lang || "code"}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 transition-colors p-1 rounded hover:bg-zinc-800 cursor-pointer"
+          title="Copy code"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3 h-3 text-emerald-400" />
+              <span className="text-emerald-400">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3 h-3" />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="p-3 font-mono text-[11px] overflow-x-auto text-zinc-200 whitespace-pre leading-relaxed">
+        {code}
+      </pre>
+    </div>
+  );
+};
+
 
 interface MarkdownRendererProps {
   content: string;
@@ -180,20 +228,14 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     if (line.trim().startsWith("```")) {
       if (inCodeBlock) {
         // Close code block
+        const blockCode = codeBlockContent.join("\n");
+        const blockLang = codeBlockLang;
         renderedBlocks.push(
-          <div
+          <CodeBlockView
             key={`codeblock-${i}`}
-            className="my-2.5 rounded-md border border-border bg-secondary/80 overflow-hidden"
-          >
-            {codeBlockLang && (
-              <div className="px-3 py-1 bg-muted/60 text-[10px] font-mono text-muted-foreground border-b border-border">
-                {codeBlockLang}
-              </div>
-            )}
-            <pre className="p-3 font-mono text-[11px] overflow-x-auto text-foreground whitespace-pre">
-              {codeBlockContent.join("\n")}
-            </pre>
-          </div>,
+            code={blockCode}
+            lang={blockLang}
+          />,
         );
         inCodeBlock = false;
         codeBlockContent = [];
