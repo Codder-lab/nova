@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Send,
-  Bot,
   User,
   Clock,
   Wrench,
@@ -35,7 +34,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { socketClient } from "../services/socket";
-import type { AgentStep, VoiceConfig } from "@nova/shared";
+import type { AgentStep, VoiceConfig, HydratedBot } from "@nova/shared";
 import { DEFAULT_VOICE_CONFIG } from "@nova/shared";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +42,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ModelPicker } from "./ModelPicker";
+import { BotPicker, getBotVisual } from "./BotPicker";
 import { useTextToSpeech } from "../hooks/useTextToSpeech";
 import { useVoiceRecognition } from "../hooks/useVoiceRecognition";
 import { VoiceWaveform } from "./VoiceWaveform";
@@ -65,6 +65,7 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  botSlug?: string;
   runId?: string;
   steps?: AgentStep[];
   pendingApproval?: {
@@ -548,6 +549,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [inputGoal, setInputGoal] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeBot, setActiveBot] = useState<HydratedBot | null>(null);
 
   // Session state
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
@@ -743,6 +745,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             id: m.id || m._id,
             role: m.role,
             content: m.content || "",
+            botSlug: m.botSlug,
             runId: m.runId,
             steps: m.steps || [],
             durationMs: m.durationMs,
@@ -946,6 +949,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         id: assistantMsgId,
         role: "assistant",
         content: "",
+        botSlug: activeBot?.slug || "nova-core",
         status: "running",
         steps: [],
         isStreaming: false,
@@ -957,6 +961,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const response = await api.runAgent({
         goal,
         conversationId: currentSessionId || undefined,
+        botSlug: activeBot?.slug || "nova-core",
       });
 
       // If a session was assigned/created by server, remember it
@@ -978,6 +983,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               ...m,
               runId: response.runId,
               content: response.response,
+              botSlug: response.botSlug || activeBot?.slug || "nova-core",
               status: response.status,
               steps:
                 response.steps && response.steps.length > 0
@@ -1279,6 +1285,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <BotPicker
+              activeBotSlug={activeBot?.slug}
+              onBotChanged={setActiveBot}
+            />
             <ModelPicker compact />
 
             {/* Voice & Hands-Free Settings Trigger */}
@@ -1341,42 +1351,98 @@ export const ChatView: React.FC<ChatViewProps> = ({
           ) : isEmpty ? (
             /* Empty State — Clean, Minimal, Professional */
             <div className="flex flex-col items-center justify-center min-h-full py-8 text-center max-w-2xl mx-auto">
-              <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center mb-4 shadow-xs">
-                <Bot className="w-6 h-6" />
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center mb-3 shadow-xs border",
+                  activeBot
+                    ? getBotVisual(activeBot.slug).bg
+                    : "bg-primary/10 text-primary border-primary/20",
+                )}
+              >
+                {(() => {
+                  const BVisual = getBotVisual(activeBot?.slug || "nova-core");
+                  const BIcon = BVisual.icon;
+                  return <BIcon className={cn("w-6 h-6", BVisual.color)} />;
+                })()}
               </div>
 
-              <h2 className="text-xl font-semibold text-foreground mb-1 tracking-tight">
-                Nova Autonomous Agent
-              </h2>
-              <p className="text-muted-foreground text-xs max-w-md mb-8">
-                All interactions are organized in persistent sessions. Pick a
-                suggestion below or describe any goal to begin.
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-xl font-semibold text-foreground tracking-tight">
+                  {activeBot ? activeBot.name : "Nova Autonomous Agent"}
+                </h2>
+                {activeBot && activeBot.userPreference?.tone !== "default" && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 capitalize">
+                    {activeBot.userPreference.tone}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground text-xs max-w-md mb-6">
+                {activeBot
+                  ? activeBot.description
+                  : "All interactions are organized in persistent sessions. Pick a suggestion below or describe any goal to begin."}
               </p>
 
-              {/* Quick Action Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg mb-2">
-                {quickActions.map((action) => {
-                  const Icon = action.icon;
-                  return (
-                    <button
-                      key={action.label}
-                      onClick={() => handleSend(action.prompt)}
-                      className="flex items-start gap-3 p-3.5 rounded-lg border border-border bg-card hover:bg-muted/50 hover:border-border text-left transition-colors cursor-pointer group"
-                    >
-                      <div className="p-2 rounded-md bg-secondary text-foreground shrink-0 mt-0.5">
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-foreground group-hover:text-primary mb-0.5">
-                          {action.label}
+              {/* Bot-Specific Everyday Task Routines */}
+              {activeBot && activeBot.routines && activeBot.routines.length > 0 && (
+                <div className="w-full max-w-xl mb-6 text-left">
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      <span>{activeBot.name} Everyday Task Routines</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      One-click autonomous tasks
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {activeBot.routines.map((routine) => (
+                      <button
+                        key={routine.id}
+                        onClick={() => handleSend(routine.prompt)}
+                        className="flex flex-col items-start p-3 rounded-lg border border-border bg-card/80 hover:bg-muted/60 hover:border-border text-left transition-all cursor-pointer group shadow-2xs"
+                      >
+                        <span className="text-xs font-semibold text-foreground group-hover:text-primary mb-1">
+                          {routine.title}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                          {routine.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* General Quick Action Cards */}
+              <div className="w-full max-w-xl text-left">
+                <span className="text-xs font-semibold text-muted-foreground block mb-2 px-0.5">
+                  General Quick Inquiries
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {quickActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.label}
+                        onClick={() => handleSend(action.prompt)}
+                        className="flex items-start gap-3 p-3.5 rounded-lg border border-border bg-card hover:bg-muted/50 hover:border-border text-left transition-colors cursor-pointer group"
+                      >
+                        <div className="p-2 rounded-md bg-secondary text-foreground shrink-0 mt-0.5">
+                          <Icon className="w-4 h-4" />
                         </div>
-                        <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                          {action.prompt}
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground group-hover:text-primary mb-0.5">
+                            {action.label}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            {action.prompt}
+                          </div>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (
@@ -1396,13 +1462,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       "mt-0.5 font-bold",
                       msg.role === "user"
                         ? "bg-secondary text-foreground border border-border"
+                        : msg.botSlug
+                        ? cn(getBotVisual(msg.botSlug).bg, "border border-border/40")
                         : "bg-secondary text-secondary-foreground",
                     )}
                   >
                     {msg.role === "user" ? (
                       <User className="w-3.5 h-3.5" />
                     ) : (
-                      <Bot className="w-3.5 h-3.5" />
+                      (() => {
+                        const BVisual = getBotVisual(
+                          msg.botSlug || activeBot?.slug || "nova-core",
+                        );
+                        const BIcon = BVisual.icon;
+                        return <BIcon className={cn("w-3.5 h-3.5", BVisual.color)} />;
+                      })()
                     )}
                   </Avatar>
 
@@ -1414,6 +1488,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         : "bg-card text-card-foreground border-border",
                     )}
                   >
+                    {msg.role === "assistant" && (
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="font-semibold text-[11px] text-foreground">
+                          {(() => {
+                            const bSlug =
+                              msg.botSlug || activeBot?.slug || "nova-core";
+                            const visual = getBotVisual(bSlug);
+                            return visual.badge ? `Nova ${visual.badge}` : "Nova Core";
+                          })()}
+                        </span>
+                        {msg.botSlug && (
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] px-1 py-0 h-3.5",
+                              getBotVisual(msg.botSlug).badgeColor,
+                            )}
+                          >
+                            {getBotVisual(msg.botSlug).badge}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                     {msg.role === "user" && (
                       <div className="whitespace-pre-wrap leading-relaxed font-normal text-foreground">
                         {msg.content}

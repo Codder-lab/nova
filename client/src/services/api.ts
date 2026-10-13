@@ -1,8 +1,11 @@
+import type { HydratedBot, UpdateBotPreferenceInput } from "@nova/shared";
+
 const API_BASE = "/api";
 
 export interface RunAgentPayload {
   goal: string;
   conversationId?: string;
+  botSlug?: string;
   maxSteps?: number;
   timeoutMs?: number;
   provider?: string;
@@ -303,5 +306,36 @@ export const api = {
     } catch {
       return { status: "ok", llmProvider: "Ollama", model: "qwen2.5:7b" };
     }
+  },
+
+  // Curated Bots & User Preferences
+  listBots: async (): Promise<{ bots: HydratedBot[] }> => {
+    return request(`${API_BASE}/bots`);
+  },
+
+  getBot: async (botSlug: string): Promise<{ bot: HydratedBot }> => {
+    return request(`${API_BASE}/bots/${encodeURIComponent(botSlug)}`);
+  },
+
+  updateBotPreferences: async (
+    botSlug: string,
+    patch: UpdateBotPreferenceInput,
+  ): Promise<{ bot: HydratedBot }> => {
+    return request(`${API_BASE}/bots/${encodeURIComponent(botSlug)}/preferences`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+  },
+
+  resetBotPreferences: async (
+    botSlug: string,
+  ): Promise<{ bot: HydratedBot }> => {
+    return request(
+      `${API_BASE}/bots/${encodeURIComponent(botSlug)}/preferences/reset`,
+      {
+        method: "POST",
+      },
+    );
   },
 };

@@ -2,10 +2,6 @@ import {
   MessageSquare,
   CheckSquare,
   Bell,
-  Brain,
-  Clock,
-  History,
-  Globe,
   Settings,
   Bot,
   ShieldAlert,
@@ -23,10 +19,6 @@ export type TabType =
   | "chat"
   | "tasks"
   | "reminders"
-  | "memory"
-  | "schedules"
-  | "runs"
-  | "research"
   | "integrations"
   | "analytics"
   | "settings";
@@ -70,30 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: "Reminders",
       icon: Bell,
       group: "Core",
-    },
-    {
-      id: "memory" as TabType,
-      label: "Memory Bank",
-      icon: Brain,
-      group: "Core",
-    },
-    {
-      id: "schedules" as TabType,
-      label: "Automations",
-      icon: Clock,
-      group: "Operations",
-    },
-    {
-      id: "runs" as TabType,
-      label: "Run History",
-      icon: History,
-      group: "Operations",
-    },
-    {
-      id: "research" as TabType,
-      label: "Web & Browser",
-      icon: Globe,
-      group: "Operations",
     },
     {
       id: "integrations" as TabType,

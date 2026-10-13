@@ -14,6 +14,7 @@ import { modelRouter } from "./routes/model.routes";
 import integrationRoutes from "./routes/integration.routes";
 import whatsappRoutes from "./routes/whatsapp.routes";
 import analyticsRoutes from "./routes/analytics.routes";
+import { botRouter } from "./routes/bot.routes";
 
 export function createApp(): express.Application {
   const app = express();
@@ -67,6 +68,7 @@ export function createApp(): express.Application {
   app.use("/api/integrations", integrationRoutes);
   app.use("/api/whatsapp", whatsappRoutes);
   app.use("/api/analytics", analyticsRoutes);
+  app.use("/api/bots", botRouter);
 
   // 404 Handler
   app.use((_req: Request, res: Response) => {

@@ -4,6 +4,7 @@ export interface IConversation extends Document {
   id: string;
   userId: string;
   title: string;
+  botSlug?: string;
   lastMessage?: string;
   messageCount?: number;
   metadata?: Record<string, unknown>;
@@ -17,6 +18,7 @@ export interface IMessage extends Document {
   userId: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
+  botSlug?: string;
   toolCalls?: unknown[];
   steps?: unknown[];
   runId?: string;
@@ -37,6 +39,7 @@ const ConversationSchema = new Schema<IConversation>(
       trim: true,
       default: "New Chat",
     },
+    botSlug: { type: String, default: "nova-core", index: true },
     lastMessage: { type: String },
     messageCount: { type: Number, default: 0 },
     metadata: { type: Schema.Types.Mixed, default: {} },
@@ -63,6 +66,7 @@ const MessageSchema = new Schema<IMessage>(
       enum: ["user", "assistant", "system", "tool"],
       required: true,
     },
+    botSlug: { type: String },
     content: { type: String, default: "" },
     toolCalls: { type: [Schema.Types.Mixed], default: [] },
     steps: { type: [Schema.Types.Mixed], default: [] },
