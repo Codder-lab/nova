@@ -96,7 +96,10 @@ CRITICAL RULES FOR TOOL CALLING:
 3. No Unsolicited Actions: Never invent messages, reminders, or data that the user did not explicitly ask for in the current prompt.
 4. Information Retrieval: Use search/retrieval tools only when real data is needed to answer a question.
 5. Direct Answers: If no tool is needed (greetings, general chat, explanations), answer directly without calling any tools.
-6. Do not expose internal reasoning or raw JSON tool outputs to the user.`;
+6. Do not expose internal reasoning or raw JSON tool outputs to the user.
+7. Code Requests vs Execution: When the user asks for code, a script, or an algorithm (e.g. "Give me a Python script to...", "Write a JS function for..."), provide the complete, clean code in your answer formatted inside standard markdown fenced code blocks with explanations, like ChatGPT and Claude. Do NOT run or execute the code with execute_code unless the user explicitly commands you to "run", "execute", or "test" the code.`;
+
+
   }
 
   /**
@@ -576,13 +579,30 @@ CRITICAL RULES FOR TOOL CALLING:
               "Tool execution completed",
             );
 
-            messages.push({
+            const toolMessage: ChatMessage = {
               role: "tool",
               name: tc.name,
               content:
                 typeof result === "string" ? result : JSON.stringify(result),
               toolCallId: tc.id,
-            });
+            };
+
+            if (
+              result &&
+              typeof result === "object" &&
+              "imageBase64" in result &&
+              (result as any).imageBase64
+            ) {
+              toolMessage.images = [(result as any).imageBase64];
+              socketService.emitBrowserScreenshot(input.userId, runId, {
+                imageBase64: (result as any).imageBase64,
+                mimeType: (result as any).mimeType || "image/png",
+                url: (result as any).url,
+                title: (result as any).title,
+              });
+            }
+
+            messages.push(toolMessage);
             socketService.emitToolCall(input.userId, runId, toolRecord);
           } catch (execErr: any) {
             const toolDuration = Date.now() - toolStart;
@@ -649,9 +669,31 @@ CRITICAL RULES FOR TOOL CALLING:
     }
 
     const wasExhausted = !isFinished;
-    if (wasExhausted && !finalResponse) {
-      finalResponse = `Agent reached the maximum allowed LLM calls (${maxLLMCalls}) without completing the task.`;
+    if (!finalResponse) {
+      const codeStep = [...steps]
+        .reverse()
+        .find((s) => s.type === "tool" && s.toolCall?.name === "execute_code");
+      if (codeStep && codeStep.toolCall?.arguments?.code) {
+        const lang = (codeStep.toolCall.arguments as any)?.language || "python";
+        const code = (codeStep.toolCall.arguments as any)?.code;
+        const stdout = (codeStep.toolCall.result as any)?.stdout;
+        const outStr = stdout
+          ? "\n\n### Execution Output:\n```text\n" + stdout + "\n```"
+          : "";
+        finalResponse =
+          "Here is the requested " +
+          lang +
+          " script:\n\n```" +
+          lang +
+          "\n" +
+          code +
+          "\n```" +
+          outStr;
+      } else if (wasExhausted) {
+        finalResponse = `Agent reached the maximum allowed LLM calls (${maxLLMCalls}) without completing the task.`;
+      }
     }
+
 
     const durationMs = Date.now() - startTime;
     const finalStatus = wasExhausted ? "failed" : "completed";
@@ -867,8 +909,10 @@ CRITICAL RULES FOR TOOL CALLING:
       throw new Error(`Tool "${pending.toolName}" is no longer available.`);
     }
 
+    let toolResult: any = undefined;
     try {
       const result = await tool.execute(pending.arguments, toolContext);
+      toolResult = result;
       if (lastStep && lastStep.toolCall) {
         lastStep.status = "completed";
         lastStep.toolCall.status = "completed";
@@ -876,12 +920,29 @@ CRITICAL RULES FOR TOOL CALLING:
         lastStep.completedAt = new Date();
       }
 
-      messages.push({
+      const resumedToolMessage: ChatMessage = {
         role: "tool",
         name: pending.toolName,
         content: typeof result === "string" ? result : JSON.stringify(result),
         toolCallId: pendingTc?.id,
-      });
+      };
+
+      if (
+        result &&
+        typeof result === "object" &&
+        "imageBase64" in result &&
+        (result as any).imageBase64
+      ) {
+        resumedToolMessage.images = [(result as any).imageBase64];
+        socketService.emitBrowserScreenshot(runDoc.userId, runId, {
+          imageBase64: (result as any).imageBase64,
+          mimeType: (result as any).mimeType || "image/png",
+          url: (result as any).url,
+          title: (result as any).title,
+        });
+      }
+
+      messages.push(resumedToolMessage);
     } catch (err: any) {
       if (lastStep && lastStep.toolCall) {
         lastStep.status = "failed";
@@ -897,15 +958,48 @@ CRITICAL RULES FOR TOOL CALLING:
       });
     }
 
-    // Continue LLM to formulate completion
-    const toolDefinitions = runToolRegistry.toToolDefinitions();
-    const llmResponse = await this.llm.generate({
-      messages,
-      tools: toolDefinitions,
-      temperature: 0.1,
+    // Formulate final response with clean markdown and formatted code
+    messages.push({
+      role: "user",
+      content:
+        "The action has finished executing successfully. Please provide a clear, complete, and formatted final answer to the user in markdown. Include the full source code inside standard markdown code blocks (e.g. ```python) and explain the results.",
     });
 
-    const finalResponse = llmResponse.content.trim();
+    const llmResponse = await this.llm.generate({
+      messages,
+      tools: [], // No tools here so the model writes a direct response
+      temperature: 0.2,
+    });
+
+    let finalResponse = llmResponse.content.trim();
+    if (!finalResponse) {
+      if (pending.toolName === "execute_code" && pending.arguments?.code) {
+        const lang = pending.arguments.language || "python";
+        const stdout = (toolResult as any)?.stdout
+          ? "\n\n### Execution Output:\n```text\n" + (toolResult as any).stdout + "\n```"
+          : "";
+        finalResponse =
+          "Here is the requested " +
+          lang +
+          " script:\n\n```" +
+          lang +
+          "\n" +
+          pending.arguments.code +
+          "\n```" +
+          stdout;
+      } else {
+        finalResponse = "Action authorized and completed successfully.";
+      }
+    }
+
+    // Stream tokens to connected client
+    if (finalResponse) {
+      const chunks = finalResponse.split(/(\s+)/);
+      for (const chunk of chunks) {
+        socketService.emitToken(runDoc.userId, runId, chunk);
+      }
+    }
+
     steps.push({
       id: uuidv4(),
       stepNumber: steps.length + 1,
@@ -916,6 +1010,7 @@ CRITICAL RULES FOR TOOL CALLING:
       startedAt: new Date(),
       completedAt: new Date(),
     });
+
 
     await AgentRunModel.updateOne(
       { runId },

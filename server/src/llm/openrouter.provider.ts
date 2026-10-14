@@ -326,6 +326,20 @@ export class OpenRouterProvider implements LLMProvider {
         out.tool_call_id = msg.toolCallId || "call_unknown";
       }
 
+      if (msg.images && msg.images.length > 0) {
+        out.content = [
+          { type: "text", text: msg.content || "Attached visual observation:" },
+          ...msg.images.map((img) => ({
+            type: "image_url",
+            image_url: {
+              url: img.startsWith("data:")
+                ? img
+                : `data:image/png;base64,${img}`,
+            },
+          })),
+        ];
+      }
+
       return out;
     });
   }

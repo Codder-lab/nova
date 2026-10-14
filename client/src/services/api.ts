@@ -338,4 +338,14 @@ export const api = {
       },
     );
   },
+
+  // Browser Session Control
+  closeBrowserSession: async (sessionId?: string) => {
+    return request(`${API_BASE}/agent/browser/close`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+  },
 };
+
